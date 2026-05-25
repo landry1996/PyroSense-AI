@@ -34,6 +34,10 @@ export class AuthService {
     }
   }
 
+  getUserId(): string {
+    return this.profile()?.id ?? '';
+  }
+
   hasRole(role: string): boolean {
     return this.userRoles().includes(role);
   }

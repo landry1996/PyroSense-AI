@@ -55,6 +55,7 @@ public class AlertController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String severity,
             @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) String buildingId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
@@ -64,10 +65,11 @@ public class AlertController {
 
         List<Alert> alerts;
         if (deviceId != null) {
-            // Device-scoped query; filter by tenant in-memory for safety
             alerts = getAlertQuery.findByDevice(DeviceId.from(deviceId)).stream()
                     .filter(a -> a.tenantId().equals(tenantId))
                     .toList();
+        } else if (buildingId != null) {
+            alerts = getAlertQuery.findByTenantAndBuildingId(tenantId, buildingId, offset, effectiveSize);
         } else if (status != null) {
             alerts = getAlertQuery.findByTenantAndStatus(
                     tenantId, AlertStatus.valueOf(status), offset, effectiveSize);
@@ -169,6 +171,7 @@ public class AlertController {
                 alert.getId().value().toString(),
                 alert.tenantId().value().toString(),
                 alert.deviceId().value().toString(),
+                alert.buildingId(),
                 alert.type().name(),
                 alert.severity().name(),
                 alert.title(),
@@ -190,7 +193,8 @@ public class AlertController {
         );
     }
 
-    record AlertResponse(String id, String tenantId, String deviceId, String type, String severity,
+    record AlertResponse(String id, String tenantId, String deviceId, String buildingId,
+                          String type, String severity,
                           String title, String description, String status, String assignedTo,
                           String escalationLevel, Instant createdAt, Instant slaDeadline,
                           Instant acknowledgedAt, String acknowledgedBy,

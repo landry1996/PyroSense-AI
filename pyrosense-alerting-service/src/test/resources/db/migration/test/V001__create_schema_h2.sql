@@ -20,7 +20,8 @@ CREATE TABLE alerts (
     last_escalated_at TIMESTAMP,
     occurrence_count INTEGER NOT NULL DEFAULT 1,
     last_occurrence_at TIMESTAMP,
-    comments        CLOB DEFAULT '[]'
+    comments        CLOB DEFAULT '[]',
+    building_id     VARCHAR(36)
 );
 
 CREATE INDEX idx_alerts_tenant_id ON alerts(tenant_id);
@@ -28,3 +29,5 @@ CREATE INDEX idx_alerts_device_id ON alerts(device_id);
 CREATE INDEX idx_alerts_status ON alerts(status);
 CREATE INDEX idx_alerts_severity ON alerts(severity);
 CREATE INDEX idx_alerts_tenant_status ON alerts(tenant_id, status);
+CREATE INDEX idx_alerts_building_id ON alerts(building_id);
+CREATE INDEX idx_alerts_tenant_building ON alerts(tenant_id, building_id);

@@ -59,10 +59,10 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
         if (updated == 0) {
             jdbc.update("""
                 INSERT INTO alerts (id, tenant_id, device_id, type, severity, title, description,
-                    deduplication_key, status, assigned_to, escalation_level, created_at, sla_deadline,
+                    deduplication_key, building_id, status, assigned_to, escalation_level, created_at, sla_deadline,
                     acknowledged_at, acknowledged_by, resolved_at, resolved_by, resolution_note,
                     last_escalated_at, occurrence_count, last_occurrence_at, comments)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     alert.getId().value().toString(),
                     alert.tenantId().value().toString(),
@@ -72,6 +72,7 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
                     alert.title(),
                     alert.description(),
                     alert.deduplicationKey().toStringKey(),
+                    alert.buildingId(),
                     alert.status().name(),
                     alert.assignedTo() != null ? alert.assignedTo().value().toString() : null,
                     alert.escalationLevel().name(),
@@ -169,6 +170,13 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
     }
 
     @Override
+    public List<Alert> findByTenantAndBuildingId(TenantId tenantId, String buildingId, int offset, int limit) {
+        return jdbc.query(
+                "SELECT * FROM alerts WHERE tenant_id = ? AND building_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                new AlertRowMapper(), tenantId.value().toString(), buildingId, limit, offset);
+    }
+
+    @Override
     public long countByTenantAndStatus(TenantId tenantId, AlertStatus status) {
         Long count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM alerts WHERE tenant_id = ? AND status = ?",
@@ -230,6 +238,7 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
                     .severity(AlertSeverity.valueOf(rs.getString("severity")))
                     .title(rs.getString("title"))
                     .description(rs.getString("description"))
+                    .buildingId(rs.getString("building_id"))
                     .status(AlertStatus.valueOf(rs.getString("status")))
                     .assignedTo(rs.getString("assigned_to") != null ? new UserId(UUID.fromString(rs.getString("assigned_to"))) : null)
                     .escalationLevel(EscalationLevel.valueOf(rs.getString("escalation_level")))

@@ -39,6 +39,8 @@ public interface AlertRepositoryPort {
 
     List<Alert> findEscalationCandidates();
 
+    List<Alert> findByTenantAndBuildingId(TenantId tenantId, String buildingId, int offset, int limit);
+
     long countByTenantAndStatus(TenantId tenantId, AlertStatus status);
 
     long countSlaBreached(TenantId tenantId);

@@ -75,6 +75,11 @@ public class GetAlertService implements GetAlertQuery {
     }
 
     @Override
+    public List<Alert> findByTenantAndBuildingId(TenantId tenantId, String buildingId, int offset, int limit) {
+        return repository.findByTenantAndBuildingId(tenantId, buildingId, offset, limit);
+    }
+
+    @Override
     public List<Alert> findOpenCritical(TenantId tenantId) {
         return repository.findByTenantAndStatus(tenantId, AlertStatus.OPEN).stream()
                 .filter(a -> a.severity() == AlertSeverity.CRITICAL)

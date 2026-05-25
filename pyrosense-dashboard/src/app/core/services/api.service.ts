@@ -54,6 +54,46 @@ export interface AlertResponse {
   createdAt: string;
 }
 
+export interface AlertDetailResponse {
+  id: string;
+  tenantId: string;
+  deviceId: string;
+  type: string;
+  severity: string;
+  title: string;
+  description: string;
+  status: string;
+  assignedTo: string | null;
+  escalationLevel: string;
+  createdAt: string;
+  slaDeadline: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolutionNote: string | null;
+  occurrenceCount: number;
+  lastOccurrenceAt: string | null;
+  slaBreached: boolean;
+  comments: AlertCommentResponse[];
+}
+
+export interface AlertCommentResponse {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface AlertStatistics {
+  totalOpen: number;
+  totalAcknowledged: number;
+  totalInProgress: number;
+  totalResolved: number;
+  criticalOpen: number;
+  slaBreached: number;
+}
+
 export interface RiskSummary {
   buildingId: string;
   averageScore: number;
@@ -108,8 +148,39 @@ export class ApiService {
     return this.http.get<AlertResponse[]>(`${this.baseUrl}/alerts`, { params });
   }
 
+  getAlertsList(page = 0, size = 50, status?: string, severity?: string): Observable<AlertDetailResponse[]> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (status) params = params.set('status', status);
+    if (severity) params = params.set('severity', severity);
+    return this.http.get<AlertDetailResponse[]>(`${this.baseUrl}/alerts`, { params });
+  }
+
+  getAlertById(alertId: string): Observable<AlertDetailResponse> {
+    return this.http.get<AlertDetailResponse>(`${this.baseUrl}/alerts/${alertId}`);
+  }
+
   getCriticalAlerts(): Observable<AlertResponse[]> {
     return this.http.get<AlertResponse[]>(`${this.baseUrl}/alerts/critical`);
+  }
+
+  getAlertStatistics(): Observable<AlertStatistics> {
+    return this.http.get<AlertStatistics>(`${this.baseUrl}/alerts/statistics`);
+  }
+
+  acknowledgeAlert(alertId: string, userId: string): Observable<AlertDetailResponse> {
+    return this.http.post<AlertDetailResponse>(`${this.baseUrl}/alerts/${alertId}/acknowledge`, { userId });
+  }
+
+  resolveAlert(alertId: string, userId: string, resolutionNote: string): Observable<AlertDetailResponse> {
+    return this.http.post<AlertDetailResponse>(`${this.baseUrl}/alerts/${alertId}/resolve`, { userId, resolutionNote });
+  }
+
+  markFalsePositive(alertId: string, userId: string, reason: string): Observable<AlertDetailResponse> {
+    return this.http.post<AlertDetailResponse>(`${this.baseUrl}/alerts/${alertId}/false-positive`, { userId, reason });
+  }
+
+  addAlertComment(alertId: string, authorId: string, content: string): Observable<AlertDetailResponse> {
+    return this.http.post<AlertDetailResponse>(`${this.baseUrl}/alerts/${alertId}/comments`, { authorId, content });
   }
 
   // Risk

@@ -32,6 +32,8 @@ public interface GetAlertQuery {
 
     List<Alert> findBySeverity(AlertSeverity severity);
 
+    List<Alert> findByTenantAndBuildingId(TenantId tenantId, String buildingId, int offset, int limit);
+
     List<Alert> findOpenCritical(TenantId tenantId);
 
     AlertStatistics getStatistics(TenantId tenantId);

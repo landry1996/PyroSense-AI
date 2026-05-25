@@ -24,6 +24,7 @@ public class Alert extends AggregateRoot<AlertId> {
     private final String title;
     private final String description;
     private final DeduplicationKey deduplicationKey;
+    private final String buildingId;
     private final Instant createdAt;
     private final Instant slaDeadline;
 
@@ -49,6 +50,7 @@ public class Alert extends AggregateRoot<AlertId> {
         this.title = builder.title;
         this.description = builder.description;
         this.deduplicationKey = new DeduplicationKey(builder.deviceId, builder.type);
+        this.buildingId = builder.buildingId;
         this.createdAt = builder.createdAt;
         this.slaDeadline = builder.slaDeadline;
         this.status = builder.status;
@@ -179,6 +181,7 @@ public class Alert extends AggregateRoot<AlertId> {
     public String title() { return title; }
     public String description() { return description; }
     public DeduplicationKey deduplicationKey() { return deduplicationKey; }
+    public String buildingId() { return buildingId; }
     public AlertStatus status() { return status; }
     public UserId assignedTo() { return assignedTo; }
     public EscalationLevel escalationLevel() { return escalationLevel; }
@@ -204,6 +207,7 @@ public class Alert extends AggregateRoot<AlertId> {
         private AlertSeverity severity;
         private String title;
         private String description;
+        private String buildingId;
         private Instant createdAt;
         private Instant slaDeadline;
         private AlertStatus status = AlertStatus.OPEN;
@@ -226,6 +230,7 @@ public class Alert extends AggregateRoot<AlertId> {
         public Builder severity(AlertSeverity severity) { this.severity = severity; return this; }
         public Builder title(String title) { this.title = title; return this; }
         public Builder description(String description) { this.description = description; return this; }
+        public Builder buildingId(String buildingId) { this.buildingId = buildingId; return this; }
         public Builder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
         public Builder slaDeadline(Instant slaDeadline) { this.slaDeadline = slaDeadline; return this; }
         public Builder status(AlertStatus status) { this.status = status; return this; }
