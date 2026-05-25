@@ -154,6 +154,60 @@ export interface InterventionStatistics {
   averageRiskReduction: number;
 }
 
+export interface ReportResponse {
+  id: string;
+  reportNumber: string;
+  tenantId: string;
+  buildingId: string;
+  type: string;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  fileName: string | null;
+  signatureHash: string | null;
+  metadata: ReportMetadata | null;
+  createdAt: string;
+  generatedAt: string | null;
+}
+
+export interface ReportMetadata {
+  buildingName: string;
+  buildingAddress: string;
+  sensorCount: number;
+  averageRiskScore: number;
+  alertCount: number;
+  criticalAlertCount: number;
+  interventionCount: number;
+  resolvedInterventionCount: number;
+  recommendations: string[];
+}
+
+export interface DownloadTokenResponse {
+  token: string;
+  expiresAt: string;
+}
+
+export interface NotificationResponse {
+  id: string;
+  tenantId: string;
+  recipientId: string;
+  channel: string;
+  severity: string;
+  subject: string;
+  status: string;
+  retryCount: number;
+  createdAt: string;
+  sentAt: string | null;
+  failureReason: string | null;
+}
+
+export interface NotificationStatistics {
+  sent: number;
+  failed: number;
+  pending: number;
+  retrying: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly baseUrl = '/api/v1';
@@ -289,6 +343,43 @@ export class ApiService {
 
   getDeviceRiskScore(deviceId: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/risk/devices/${deviceId}/latest`);
+  }
+
+  // Reports
+  getReports(page = 0, size = 50, type?: string): Observable<ReportResponse[]> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (type) params = params.set('type', type);
+    return this.http.get<ReportResponse[]>(`${this.baseUrl}/reports`, { params });
+  }
+
+  generateReport(tenantId: string, buildingId: string, type: string, periodStart: string, periodEnd: string): Observable<ReportResponse> {
+    return this.http.post<ReportResponse>(`${this.baseUrl}/reports/monthly`, {
+      tenantId, buildingId, type, periodStart, periodEnd,
+    });
+  }
+
+  getReportDownloadToken(reportId: string): Observable<DownloadTokenResponse> {
+    return this.http.get<DownloadTokenResponse>(`${this.baseUrl}/reports/${reportId}/download-token`);
+  }
+
+  getReportDownloadUrl(reportId: string, token: string): string {
+    return `${this.baseUrl}/reports/${reportId}/download?token=${token}`;
+  }
+
+  // Notifications
+  getNotifications(page = 0, size = 50, status?: string): Observable<NotificationResponse[]> {
+    let params = new HttpParams().set('page', page).set('size', size);
+    if (status) params = params.set('status', status);
+    return this.http.get<NotificationResponse[]>(`${this.baseUrl}/notifications`, { params });
+  }
+
+  getNotificationsByRecipient(recipientId: string, page = 0, size = 50): Observable<NotificationResponse[]> {
+    const params = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<NotificationResponse[]>(`${this.baseUrl}/notifications/recipient/${recipientId}`, { params });
+  }
+
+  getNotificationStatistics(): Observable<NotificationStatistics> {
+    return this.http.get<NotificationStatistics>(`${this.baseUrl}/notifications/statistics`);
   }
 
   // User
