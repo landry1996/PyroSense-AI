@@ -1,6 +1,6 @@
 # PyroSense AI Platform - TODO & Progress Tracker
 
-## Status: MVP Complete | Documentation Finalized
+## Status: MVP 1 Complete | MVP 2 Planned | Pilot Transition Planned
 
 ---
 
@@ -377,6 +377,8 @@
 - [x] docs/notification.md (channels, routing, retry/backoff, deduplication, RGPD, templates, API)
 - [x] docs/api-gateway.md (routing, filters, security, rate limiting, header propagation, CORS, error masking)
 - [x] docs/observability.md (stack, actuator, business metrics, tracing, logging, alerts, dashboards, config)
+- [x] docs/pilot-transition-plan.md (hardware, certification, cloud, insurance, pilot 10/100/1000, budget, roadmap 12 mois)
+- [x] docs/mvp2-plan.md (scope, bounded contexts, 22 user stories, roles, screens, endpoints, events, tables, rules, roadmap 6 sprints)
 - [x] README per module (11 service READMEs)
 
 ### Per-Service Structure
@@ -477,6 +479,83 @@
 - [x] PDF report generation (OpenPDF) — implemented in pyrosense-reporting-service
 - [ ] Mobile push notifications (Firebase)
 - [ ] Keycloak realm export (users, roles, client configuration)
+
+### Phase 6: MVP 2 — Dashboard + Reporting + Intervention + Notifications (docs/mvp2-plan.md)
+
+**Stack:** Java 21, Spring Boot 3.4.x, Angular 18, PostgreSQL, TimescaleDB, Kafka, Redis
+
+#### Sprint 1 (S1) — Fondations Frontend + Auth
+- [ ] Scaffold Angular 18 SPA (`pyrosense-dashboard`)
+- [ ] Angular routing, guards, interceptors (JWT, tenant)
+- [ ] Login page (Keycloak OIDC redirect)
+- [ ] Layout principal (sidebar, topbar, notifications badge)
+- [ ] Identity-service: Flyway migrations (replace in-memory repos)
+- [ ] Identity-service: GET /api/v1/users/me endpoint
+- [ ] CORS configuration gateway ↔ Angular
+
+#### Sprint 2 (S2) — Dashboard Temps Réel
+- [ ] Dashboard overview screen (scores globaux, alertes actives, appareils)
+- [ ] Risk-scoring-service: GET /buildings/{id}/summary enrichi
+- [ ] Device-service: GET /devices?tenantId (liste + statut)
+- [ ] Polling 30s pour scores temps réel
+- [ ] Composants Angular: risk-gauge, device-card, alert-badge
+- [ ] Building/panel/circuit drill-down screens
+
+#### Sprint 3 (S3) — Gestion des Alertes
+- [ ] Alert list screen (filtres, tri, pagination)
+- [ ] Alert detail screen (timeline, comments, actions)
+- [ ] Alerting-service: POST acknowledge, resolve, false-positive, comment
+- [ ] Alert statistics screen (charts par sévérité, tendances)
+- [ ] Notifications push navigateur (Service Worker)
+
+#### Sprint 4 (S4) — Interventions Maintenance
+- [ ] Intervention list screen (statuts, filtres, assignation)
+- [ ] Intervention detail screen (lifecycle, diagnostic, risk impact)
+- [ ] Maintenance-service: POST schedule, assign, start, complete, cancel
+- [ ] Formulaire de diagnostic terrain (avec photos — upload S3/MinIO)
+- [ ] KPI maintenance: MTTR, taux confirmation, interventions/mois
+
+#### Sprint 5 (S5) — Reporting + Notifications
+- [ ] Report generation screen (type, période, bâtiment)
+- [ ] Report download (secure token, PDF)
+- [ ] Reporting-service: enrichir avec données réelles cross-service
+- [ ] Notification preferences screen (canaux, consentement)
+- [ ] Notification-service: user preferences CRUD
+- [ ] Notification history screen (liste, statuts, retry)
+
+#### Sprint 6 (S6) — Audit Trail + Polish + Tests E2E
+- [ ] Audit trail screen (qui a fait quoi, quand)
+- [ ] Identity-service: GET /api/v1/audit-log (paginated, filtré)
+- [ ] User management screen (ADMIN only)
+- [ ] Cypress E2E tests (golden paths: login → dashboard → alert → intervention → report)
+- [ ] Contract tests (Spring Cloud Contract) backend ↔ frontend
+- [ ] Performance tests (k6: 100 users, API < 200ms P95)
+- [ ] Documentation: docs/mvp2-deployment.md
+
+### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
+
+#### Mois 1-3 — Prototype Labo
+- [ ] Sélection capteurs (pinces ampéro, sondes T°, détecteurs arc)
+- [ ] Sélection microcontrôleur/gateway (ESP32/STM32/RPi)
+- [ ] Développement firmware MQTT
+- [ ] Tests banc de labo (données réelles vs simulateur)
+- [ ] Déploiement cloud (Kubernetes, managed PostgreSQL, managed Kafka)
+- [ ] Calibration algorithmes statistiques sur données réelles
+
+#### Mois 4-6 — Pilote 10 Capteurs
+- [ ] Installation terrain (1 bâtiment, 10 capteurs)
+- [ ] Monitoring 24/7, collecte données terrain
+- [ ] Ajustement seuils détection (faux positifs < 5%)
+- [ ] Certification EMC + tests thermiques
+- [ ] Début dossier IEC 61439 / NF C 15-100
+
+#### Mois 7-12 — Pilote 100 Capteurs + Industrialisation
+- [ ] Extension à 5 bâtiments, 100 capteurs
+- [ ] ML v1 (Isolation Forest, LSTM) sur données terrain accumulées
+- [ ] Application mobile (notifications push)
+- [ ] Haute disponibilité (multi-AZ, DR)
+- [ ] Certification complète + assurance RC Pro
+- [ ] Préparation commercialisation (tarification, support, SLA)
 
 ---
 
