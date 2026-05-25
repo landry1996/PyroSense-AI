@@ -7,6 +7,7 @@ import com.pyrosense.alerting.domain.model.AlertStatus;
 import com.pyrosense.shared.id.AlertId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
+import com.pyrosense.shared.security.TenantContext;
 import com.pyrosense.shared.valueobject.AlertSeverity;
 
 import java.util.List;
@@ -22,12 +23,20 @@ public class GetAlertService implements GetAlertQuery {
 
     @Override
     public Optional<Alert> findById(AlertId alertId) {
-        return repository.findById(alertId);
+        Optional<Alert> alert = repository.findById(alertId);
+        // Validate that the alert belongs to the current tenant
+        TenantId currentTenant = TenantContext.require();
+        return alert.filter(a -> a.tenantId().equals(currentTenant));
     }
 
     @Override
     public List<Alert> findByTenant(TenantId tenantId) {
         return repository.findByTenantId(tenantId);
+    }
+
+    @Override
+    public List<Alert> findByTenant(TenantId tenantId, int offset, int limit) {
+        return repository.findByTenantId(tenantId, offset, limit);
     }
 
     @Override
@@ -46,14 +55,29 @@ public class GetAlertService implements GetAlertQuery {
     }
 
     @Override
+    public List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status, int offset, int limit) {
+        return repository.findByTenantAndStatus(tenantId, status, offset, limit);
+    }
+
+    @Override
+    public List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity) {
+        return repository.findByTenantAndSeverity(tenantId, severity);
+    }
+
+    @Override
+    public List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity, int offset, int limit) {
+        return repository.findByTenantAndSeverity(tenantId, severity, offset, limit);
+    }
+
+    @Override
     public List<Alert> findBySeverity(AlertSeverity severity) {
         return repository.findBySeverity(severity);
     }
 
     @Override
-    public List<Alert> findOpenCritical() {
-        return repository.findBySeverity(AlertSeverity.CRITICAL).stream()
-                .filter(a -> !a.status().isTerminal())
+    public List<Alert> findOpenCritical(TenantId tenantId) {
+        return repository.findByTenantAndStatus(tenantId, AlertStatus.OPEN).stream()
+                .filter(a -> a.severity() == AlertSeverity.CRITICAL)
                 .toList();
     }
 

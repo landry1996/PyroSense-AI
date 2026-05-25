@@ -106,6 +106,12 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
     }
 
     @Override
+    public List<Alert> findByTenantId(TenantId tenantId, int offset, int limit) {
+        return jdbc.query("SELECT * FROM alerts WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                new AlertRowMapper(), tenantId.value().toString(), limit, offset);
+    }
+
+    @Override
     public List<Alert> findByDeviceId(DeviceId deviceId) {
         return jdbc.query("SELECT * FROM alerts WHERE device_id = ? ORDER BY created_at DESC",
                 new AlertRowMapper(), deviceId.value().toString());
@@ -121,6 +127,24 @@ public class JdbcAlertRepository implements AlertRepositoryPort {
     public List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status) {
         return jdbc.query("SELECT * FROM alerts WHERE tenant_id = ? AND status = ? ORDER BY created_at DESC",
                 new AlertRowMapper(), tenantId.value().toString(), status.name());
+    }
+
+    @Override
+    public List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status, int offset, int limit) {
+        return jdbc.query("SELECT * FROM alerts WHERE tenant_id = ? AND status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                new AlertRowMapper(), tenantId.value().toString(), status.name(), limit, offset);
+    }
+
+    @Override
+    public List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity) {
+        return jdbc.query("SELECT * FROM alerts WHERE tenant_id = ? AND severity = ? ORDER BY created_at DESC",
+                new AlertRowMapper(), tenantId.value().toString(), severity.name());
+    }
+
+    @Override
+    public List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity, int offset, int limit) {
+        return jdbc.query("SELECT * FROM alerts WHERE tenant_id = ? AND severity = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                new AlertRowMapper(), tenantId.value().toString(), severity.name(), limit, offset);
     }
 
     @Override

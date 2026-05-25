@@ -34,7 +34,12 @@ public class KafkaTelemetryEventPublisher implements TelemetryEventPublisherPort
             var integrationEvent = new IntegrationEvent(
                     event.eventId(), event.eventType(), event.occurredAt(), SOURCE, payload);
             String message = objectMapper.writeValueAsString(integrationEvent);
-            kafkaTemplate.send(TELEMETRY_TOPIC, event.eventId().toString(), message);
+            kafkaTemplate.send(TELEMETRY_TOPIC, event.eventId().toString(), message)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish event to {}: {}", TELEMETRY_TOPIC, ex.getMessage(), ex);
+                        }
+                    });
             log.debug("Published event: {} [{}]", event.eventType(), event.eventId());
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize event: {}", event.eventType(), e);
@@ -45,7 +50,12 @@ public class KafkaTelemetryEventPublisher implements TelemetryEventPublisherPort
     public void publishToDlq(String topic, String key, String payload, String reason) {
         try {
             var dlqMessage = objectMapper.writeValueAsString(new DlqEntry(key, payload, reason));
-            kafkaTemplate.send(DLQ_TOPIC, key, dlqMessage);
+            kafkaTemplate.send(DLQ_TOPIC, key, dlqMessage)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish event to {}: {}", DLQ_TOPIC, ex.getMessage(), ex);
+                        }
+                    });
             log.warn("Sent to DLQ: key={} reason={}", key, reason);
         } catch (JsonProcessingException e) {
             log.error("Failed to write to DLQ: key={}", key, e);

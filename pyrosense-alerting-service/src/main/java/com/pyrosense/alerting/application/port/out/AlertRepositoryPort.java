@@ -19,11 +19,19 @@ public interface AlertRepositoryPort {
 
     List<Alert> findByTenantId(TenantId tenantId);
 
+    List<Alert> findByTenantId(TenantId tenantId, int offset, int limit);
+
     List<Alert> findByDeviceId(DeviceId deviceId);
 
     List<Alert> findByStatus(AlertStatus status);
 
     List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status);
+
+    List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status, int offset, int limit);
+
+    List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity);
+
+    List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity, int offset, int limit);
 
     List<Alert> findBySeverity(AlertSeverity severity);
 

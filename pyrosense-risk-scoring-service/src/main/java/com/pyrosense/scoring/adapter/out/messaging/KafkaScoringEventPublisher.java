@@ -34,7 +34,12 @@ public class KafkaScoringEventPublisher implements ScoringEventPublisherPort {
             String payload = objectMapper.writeValueAsString(event);
             IntegrationEvent integration = IntegrationEvent.of(
                     event.eventType(), "risk-scoring-service", payload);
-            kafkaTemplate.send(topic, integration);
+            kafkaTemplate.send(topic, integration)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish event to {}: {}", topic, ex.getMessage(), ex);
+                        }
+                    });
             log.debug("Published: type={}", event.eventType());
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize scoring event: {}", e.getMessage());

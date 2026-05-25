@@ -449,6 +449,27 @@
 - [x] Replay attack prevention (HMAC + timestamp window)
 - [x] Payload integrity (HMAC signature on device telemetry)
 
+### Phase 4b: Audit Remediation (IN PROGRESS)
+- [x] Fix CRITICAL: Tenant isolation in AlertController (tenant validation, pagination, @PreAuthorize)
+- [x] Fix CRITICAL: HTTP timeout on inter-service calls (2s connect, 5s read)
+- [x] Fix CRITICAL: Gateway route timeouts (3s connect, 10s response)
+- [x] Fix HIGH: Kafka producers — add send failure callbacks (5 services)
+- [x] Fix HIGH: Kafka consumers — add DefaultErrorHandler with retry (3 services)
+- [x] Fix HIGH: Graceful shutdown configured (all 10 services)
+- [x] Fix HIGH: HikariCP pool tuning (8 database services)
+- [x] docs/audit-report.md — Full 136-finding audit report
+- [ ] Fix HIGH: Tenant validation on remaining controllers (device, notification, maintenance, reporting, scoring)
+- [ ] Fix HIGH: @PreAuthorize on remaining controllers (scoring, analysis, ingestion)
+- [ ] Fix HIGH: MQTT auto-reconnect + thread pool offloading
+- [ ] Fix HIGH: Device authorization caching (eliminate per-message HTTP calls)
+- [ ] Fix HIGH: Batch DB inserts for telemetry (use existing saveBatch method)
+- [ ] Fix HIGH: Pagination on remaining list endpoints
+- [ ] Fix MEDIUM: Fix swallowed exceptions in persistence adapters
+- [ ] Fix MEDIUM: Align Prometheus metric names with Grafana dashboards
+- [ ] Fix MEDIUM: Enable Kafka trace propagation (observationEnabled)
+- [ ] Fix MEDIUM: Add GlobalExceptionHandler to identity/ingestion/scoring/analysis services
+- [ ] Fix MEDIUM: Identity-service Flyway migrations (replace in-memory repos)
+
 ### Phase 5: Advanced Features
 - [ ] ML-based anomaly detection service
 - [ ] Federated learning module

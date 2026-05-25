@@ -40,7 +40,12 @@ public class KafkaAlertEventPublisher implements AlertEventPublisherPort {
                     "pyrosense-alerting-service",
                     payload
             );
-            kafkaTemplate.send(topic, integrationEvent);
+            kafkaTemplate.send(topic, integrationEvent)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish event to {}: {}", topic, ex.getMessage(), ex);
+                        }
+                    });
             log.debug("Published event: {} to topic: {}", event.eventType(), topic);
         } catch (Exception e) {
             log.error("Failed to publish event: {}", event.eventType(), e);

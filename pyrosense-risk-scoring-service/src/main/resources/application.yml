@@ -1,10 +1,18 @@
 spring:
   application:
     name: pyrosense-risk-scoring-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:postgresql://localhost:5432/pyrosense_scoring
     username: ${DB_USERNAME:pyrosense}
     password: ${DB_PASSWORD:pyrosense}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 600000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -33,6 +41,7 @@ spring:
 
 server:
   port: 8085
+  shutdown: graceful
 
 management:
   endpoints:

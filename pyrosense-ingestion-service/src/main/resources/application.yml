@@ -1,16 +1,22 @@
 server:
   port: 8083
+  shutdown: graceful
 
 spring:
   application:
     name: pyrosense-ingestion-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:postgresql://localhost:5432/pyrosense_ingestion
     username: ${DB_USERNAME:pyrosense}
     password: ${DB_PASSWORD:pyrosense}
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 15
       minimum-idle: 5
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 600000
   jpa:
     hibernate:
       ddl-auto: validate

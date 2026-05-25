@@ -16,15 +16,23 @@ public interface GetAlertQuery {
 
     List<Alert> findByTenant(TenantId tenantId);
 
+    List<Alert> findByTenant(TenantId tenantId, int offset, int limit);
+
     List<Alert> findByDevice(DeviceId deviceId);
 
     List<Alert> findByStatus(AlertStatus status);
 
     List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status);
 
+    List<Alert> findByTenantAndStatus(TenantId tenantId, AlertStatus status, int offset, int limit);
+
+    List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity);
+
+    List<Alert> findByTenantAndSeverity(TenantId tenantId, AlertSeverity severity, int offset, int limit);
+
     List<Alert> findBySeverity(AlertSeverity severity);
 
-    List<Alert> findOpenCritical();
+    List<Alert> findOpenCritical(TenantId tenantId);
 
     AlertStatistics getStatistics(TenantId tenantId);
 

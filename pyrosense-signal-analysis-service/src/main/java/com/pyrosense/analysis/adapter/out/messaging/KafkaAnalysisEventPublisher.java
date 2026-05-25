@@ -34,7 +34,12 @@ public class KafkaAnalysisEventPublisher implements AnalysisEventPublisherPort {
             String payload = objectMapper.writeValueAsString(event);
             IntegrationEvent integrationEvent = IntegrationEvent.of(
                     event.eventType(), "signal-analysis-service", payload);
-            kafkaTemplate.send(topic, integrationEvent);
+            kafkaTemplate.send(topic, integrationEvent)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish event to {}: {}", topic, ex.getMessage(), ex);
+                        }
+                    });
             log.debug("Published event: type={}", event.eventType());
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize event: {}", e.getMessage());

@@ -10,11 +10,13 @@ import com.pyrosense.shared.id.AlertId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import com.pyrosense.shared.security.TenantContext;
 import com.pyrosense.shared.valueobject.AlertSeverity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -23,7 +25,12 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/alerts")
+@PreAuthorize("hasAnyRole('TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OPERATOR')")
 public class AlertController {
+
+    private static final int DEFAULT_PAGE = 0;
+    private static final int DEFAULT_SIZE = 50;
+    private static final int MAX_SIZE = 200;
 
     private final ManageAlertUseCase manageAlertUseCase;
     private final GetAlertQuery getAlertQuery;
@@ -35,7 +42,9 @@ public class AlertController {
 
     @GetMapping("/{alertId}")
     public ResponseEntity<AlertResponse> getById(@PathVariable String alertId) {
+        TenantId currentTenant = TenantContext.require();
         return getAlertQuery.findById(AlertId.from(alertId))
+                .filter(alert -> alert.tenantId().equals(currentTenant))
                 .map(this::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -43,25 +52,30 @@ public class AlertController {
 
     @GetMapping
     public ResponseEntity<List<AlertResponse>> list(
-            @RequestParam(required = false) String tenantId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String severity,
-            @RequestParam(required = false) String deviceId) {
+            @RequestParam(required = false) String deviceId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        TenantId tenantId = TenantContext.require();
+        int effectiveSize = Math.min(Math.max(size, 1), MAX_SIZE);
+        int offset = Math.max(page, 0) * effectiveSize;
 
         List<Alert> alerts;
         if (deviceId != null) {
-            alerts = getAlertQuery.findByDevice(DeviceId.from(deviceId));
-        } else if (tenantId != null && status != null) {
-            alerts = getAlertQuery.findByTenantAndStatus(
-                    new TenantId(UUID.fromString(tenantId)), AlertStatus.valueOf(status));
-        } else if (tenantId != null) {
-            alerts = getAlertQuery.findByTenant(new TenantId(UUID.fromString(tenantId)));
+            // Device-scoped query; filter by tenant in-memory for safety
+            alerts = getAlertQuery.findByDevice(DeviceId.from(deviceId)).stream()
+                    .filter(a -> a.tenantId().equals(tenantId))
+                    .toList();
         } else if (status != null) {
-            alerts = getAlertQuery.findByStatus(AlertStatus.valueOf(status));
+            alerts = getAlertQuery.findByTenantAndStatus(
+                    tenantId, AlertStatus.valueOf(status), offset, effectiveSize);
         } else if (severity != null) {
-            alerts = getAlertQuery.findBySeverity(AlertSeverity.valueOf(severity));
+            alerts = getAlertQuery.findByTenantAndSeverity(
+                    tenantId, AlertSeverity.valueOf(severity), offset, effectiveSize);
         } else {
-            alerts = getAlertQuery.findByStatus(AlertStatus.OPEN);
+            alerts = getAlertQuery.findByTenant(tenantId, offset, effectiveSize);
         }
 
         return ResponseEntity.ok(alerts.stream().map(this::toResponse).toList());
@@ -69,59 +83,81 @@ public class AlertController {
 
     @GetMapping("/critical")
     public ResponseEntity<List<AlertResponse>> getOpenCritical() {
-        return ResponseEntity.ok(getAlertQuery.findOpenCritical().stream().map(this::toResponse).toList());
+        TenantId tenantId = TenantContext.require();
+        return ResponseEntity.ok(getAlertQuery.findOpenCritical(tenantId).stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/statistics")
-    public ResponseEntity<AlertStatistics> getStatistics(@RequestParam String tenantId) {
-        return ResponseEntity.ok(getAlertQuery.getStatistics(new TenantId(UUID.fromString(tenantId))));
+    public ResponseEntity<AlertStatistics> getStatistics() {
+        TenantId tenantId = TenantContext.require();
+        return ResponseEntity.ok(getAlertQuery.getStatistics(tenantId));
     }
 
     @PostMapping("/{alertId}/acknowledge")
     public ResponseEntity<AlertResponse> acknowledge(@PathVariable String alertId,
                                                       @Valid @RequestBody AcknowledgeRequest request) {
+        TenantId currentTenant = TenantContext.require();
         Alert alert = manageAlertUseCase.acknowledge(
                 AlertId.from(alertId), new UserId(UUID.fromString(request.userId())));
+        if (!alert.tenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponse(alert));
     }
 
     @PostMapping("/{alertId}/assign")
     public ResponseEntity<AlertResponse> assign(@PathVariable String alertId,
                                                  @Valid @RequestBody AssignRequest request) {
+        TenantId currentTenant = TenantContext.require();
         Alert alert = manageAlertUseCase.assign(
                 AlertId.from(alertId),
                 new UserId(UUID.fromString(request.assigneeId())),
                 new UserId(UUID.fromString(request.assignedById())));
+        if (!alert.tenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponse(alert));
     }
 
     @PostMapping("/{alertId}/resolve")
     public ResponseEntity<AlertResponse> resolve(@PathVariable String alertId,
                                                   @Valid @RequestBody ResolveRequest request) {
+        TenantId currentTenant = TenantContext.require();
         Alert alert = manageAlertUseCase.resolve(
                 AlertId.from(alertId),
                 new UserId(UUID.fromString(request.userId())),
                 request.resolutionNote());
+        if (!alert.tenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponse(alert));
     }
 
     @PostMapping("/{alertId}/false-positive")
     public ResponseEntity<AlertResponse> falsePositive(@PathVariable String alertId,
                                                         @Valid @RequestBody FalsePositiveRequest request) {
+        TenantId currentTenant = TenantContext.require();
         Alert alert = manageAlertUseCase.markFalsePositive(
                 AlertId.from(alertId),
                 new UserId(UUID.fromString(request.userId())),
                 request.reason());
+        if (!alert.tenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponse(alert));
     }
 
     @PostMapping("/{alertId}/comments")
     public ResponseEntity<AlertResponse> addComment(@PathVariable String alertId,
                                                      @Valid @RequestBody CommentRequest request) {
+        TenantId currentTenant = TenantContext.require();
         Alert alert = manageAlertUseCase.addComment(
                 AlertId.from(alertId),
                 new UserId(UUID.fromString(request.authorId())),
                 request.content());
+        if (!alert.tenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(toResponse(alert));
     }
 

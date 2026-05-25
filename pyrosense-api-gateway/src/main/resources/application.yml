@@ -1,8 +1,13 @@
 spring:
   application:
     name: pyrosense-api-gateway
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 10s
       globalcors:
         corsConfigurations:
           '[/**]':
@@ -24,6 +29,7 @@ spring:
 
 server:
   port: 8080
+  shutdown: graceful
   netty:
     max-initial-line-length: 8192
     max-header-size: 16384

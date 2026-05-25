@@ -41,7 +41,12 @@ public class KafkaDeviceEventPublisher implements DeviceEventPublisherPort {
                         payload
                 );
                 String message = objectMapper.writeValueAsString(integrationEvent);
-                kafkaTemplate.send(TOPIC, event.eventId().toString(), message);
+                kafkaTemplate.send(TOPIC, event.eventId().toString(), message)
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                log.error("Failed to publish event to {}: {}", TOPIC, ex.getMessage(), ex);
+                            }
+                        });
                 log.debug("Published event: {} [{}]", event.eventType(), event.eventId());
             } catch (JsonProcessingException e) {
                 log.error("Failed to serialize event: {}", event.eventType(), e);

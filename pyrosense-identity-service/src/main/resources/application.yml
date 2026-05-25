@@ -1,6 +1,8 @@
 spring:
   application:
     name: pyrosense-identity-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:postgresql://localhost:5432/pyrosense_identity
     username: ${DB_USERNAME:pyrosense}
@@ -20,6 +22,7 @@ spring:
 
 server:
   port: 8081
+  shutdown: graceful
 
 management:
   endpoints:

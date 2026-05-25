@@ -1,10 +1,18 @@
 spring:
   application:
     name: pyrosense-notification-service
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: jdbc:postgresql://localhost:5432/pyrosense_notification
     username: ${DB_USERNAME:pyrosense}
     password: ${DB_PASSWORD:pyrosense}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 600000
   flyway:
     enabled: true
   kafka:
@@ -21,6 +29,7 @@ spring:
 
 server:
   port: 8087
+  shutdown: graceful
 
 management:
   endpoints:
