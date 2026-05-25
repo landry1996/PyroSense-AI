@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: pyrosense-alerting-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyrosense_alerting
+    username: ${DB_USERNAME:pyrosense}
+    password: ${DB_PASSWORD:pyrosense}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: alerting-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER:http://localhost:8180/realms/pyrosense}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET:http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs}
+
+server:
+  port: 8086
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+pyrosense:
+  alerting:
+    escalation-check-interval: 300000
+    sla:
+      critical-deadline: 24h
+      warning-deadline: 7d
+      info-deadline: 30d
+      escalation-interval: 4h
+    kafka:
+      scoring-topic: scoring-events
+      analysis-topic: analysis-events
+      output-topic: alerting-events

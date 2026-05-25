@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/test
+  kafka:
+    bootstrap-servers: localhost:9092
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+pyrosense:
+  analysis:
+    thresholds:
+      z-score-threshold: 3.0
+      thd-max-percent: 8.0
+      temperature-max-celsius: 85.0
+      temperature-rise-rate-per-hour: 5.0
+      micro-arc-recurrence-threshold: 3
+      transient-count-threshold: 10
+      hf-noise-max-db: -40.0
+      power-factor-min: 0.85
+      drift-percent-threshold: 15.0
+      exponential-smoothing-alpha: 0.3
+      baseline-minimum-samples: 5

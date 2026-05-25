@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: pyrosense-notification-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyrosense_notification
+    username: ${DB_USERNAME:pyrosense}
+    password: ${DB_PASSWORD:pyrosense}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+
+server:
+  port: 8087
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

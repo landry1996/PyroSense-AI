@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyrosense_device
+    username: pyrosense
+    password: pyrosense
+  kafka:
+    bootstrap-servers: localhost:9092
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/pyrosense
+          jwk-set-uri: http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs
+
+logging:
+  level:
+    com.pyrosense.device: DEBUG
+    org.springframework.security: DEBUG

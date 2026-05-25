@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: pyrosense-identity-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyrosense_identity
+    username: ${DB_USERNAME:pyrosense}
+    password: ${DB_PASSWORD:pyrosense}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER:http://localhost:8180/realms/pyrosense}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs}
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+pyrosense:
+  security:
+    max-login-attempts: 5
+    lockout-duration: 30m
+    device-token-validity: 90d
+    cors-origins: ${CORS_ORIGINS:http://localhost:3000}

@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: pyrosense-risk-scoring-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pyrosense_scoring
+    username: ${DB_USERNAME:pyrosense}
+    password: ${DB_PASSWORD:pyrosense}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: risk-scoring-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER:http://localhost:8180/realms/pyrosense}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET:http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs}
+
+server:
+  port: 8085
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+pyrosense:
+  scoring:
+    kafka:
+      topic: analysis-events
+      output-topic: scoring-events
+    weights:
+      micro-arc-weight: 0.30
+      thd-drift-weight: 0.20
+      temperature-trend-weight: 0.20
+      transient-weight: 0.10
+      hf-noise-weight: 0.10
+      recency-decay-factor: 0.95
+      repetition-boost-factor: 1.3
+      device-reliability-weight: 0.10
+      history-window-days: 7
+      recency-window-hours: 24

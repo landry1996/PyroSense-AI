@@ -1,0 +1,73 @@
+# === Build artifacts ===
+target/
+build/
+/out/
+*.jar
+*.war
+*.ear
+*.class
+
+# === IDE ===
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.factorypath
+.vscode/
+*.code-workspace
+nbproject/
+.nb-gradle/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# === Maven ===
+dependency-reduced-pom.xml
+release.properties
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+
+# === Spring Boot ===
+spring-shell.log
+
+# === Secrets (NEVER commit) ===
+application-secret.yml
+application-secret.properties
+*.env
+.env
+.env.*
+!.env.example
+credentials.json
+serviceAccountKey.json
+*.pem
+*.key
+*.p12
+*.jks
+
+# === Logs ===
+logs/
+*.log
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Coverage & Reports ===
+jacoco.exec
+*.exec
+coverage/
+htmlcov/
+site/
+
+# === Temporary ===
+tmp/
+temp/
