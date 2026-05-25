@@ -57,6 +57,12 @@ export const routes: Routes = [
       import('./features/interventions/intervention-list.component').then(m => m.InterventionListComponent),
   },
   {
+    path: 'interventions/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/interventions/intervention-detail.component').then(m => m.InterventionDetailComponent),
+  },
+  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () =>

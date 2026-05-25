@@ -179,6 +179,25 @@ public class InterventionController {
                 .map(this::toResponse).toList());
     }
 
+    @GetMapping("/kanban")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
+    public ResponseEntity<KanbanResponse> kanban() {
+        TenantId tid = TenantContext.require();
+        List<Intervention> all = queryUseCase.findByTenant(tid);
+        var grouped = all.stream().collect(java.util.stream.Collectors.groupingBy(
+                Intervention::getStatus,
+                java.util.stream.Collectors.mapping(this::toResponse, java.util.stream.Collectors.toList())
+        ));
+        return ResponseEntity.ok(new KanbanResponse(
+                grouped.getOrDefault(InterventionStatus.CREATED, List.of()),
+                grouped.getOrDefault(InterventionStatus.PLANNED, List.of()),
+                grouped.getOrDefault(InterventionStatus.ASSIGNED, List.of()),
+                grouped.getOrDefault(InterventionStatus.IN_PROGRESS, List.of()),
+                grouped.getOrDefault(InterventionStatus.COMPLETED, List.of()),
+                grouped.getOrDefault(InterventionStatus.CANCELLED, List.of())
+        ));
+    }
+
     @GetMapping("/statistics")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY')")
     public ResponseEntity<InterventionStatistics> statistics() {
@@ -258,4 +277,13 @@ public class InterventionController {
 
     record DiagnosticResponse(String observations, String measurementsTaken,
                                String recommendations, String diagnosticBy, Instant recordedAt) {}
+
+    record KanbanResponse(
+            List<InterventionResponse> created,
+            List<InterventionResponse> planned,
+            List<InterventionResponse> assigned,
+            List<InterventionResponse> inProgress,
+            List<InterventionResponse> completed,
+            List<InterventionResponse> cancelled
+    ) {}
 }
