@@ -31,6 +31,30 @@ public class User {
         this.updatedAt = this.createdAt;
     }
 
+    private User(UserId id, String email, String fullName, UserStatus status,
+                 List<Membership> memberships, int failedLoginAttempts,
+                 Instant lastLoginAt, Instant lockedUntil,
+                 Instant createdAt, Instant updatedAt) {
+        this.id = Objects.requireNonNull(id);
+        this.email = email;
+        this.fullName = fullName;
+        this.status = status;
+        this.memberships = new ArrayList<>(memberships);
+        this.failedLoginAttempts = failedLoginAttempts;
+        this.lastLoginAt = lastLoginAt;
+        this.lockedUntil = lockedUntil;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public static User reconstitute(UserId id, String email, String fullName, UserStatus status,
+                                     List<Membership> memberships, int failedLoginAttempts,
+                                     Instant lastLoginAt, Instant lockedUntil,
+                                     Instant createdAt, Instant updatedAt) {
+        return new User(id, email, fullName, status, memberships, failedLoginAttempts,
+                lastLoginAt, lockedUntil, createdAt, updatedAt);
+    }
+
     public void addMembership(TenantId tenantId, Set<Role> roles) {
         Membership membership = new Membership(UUID.randomUUID(), id, tenantId, roles);
         memberships.add(membership);

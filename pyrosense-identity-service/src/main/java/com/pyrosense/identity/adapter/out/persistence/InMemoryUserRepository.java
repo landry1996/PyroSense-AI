@@ -4,6 +4,7 @@ import com.pyrosense.identity.application.port.out.UserRepository;
 import com.pyrosense.identity.domain.model.User;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@Profile("inmemory")
 public class InMemoryUserRepository implements UserRepository {
 
     private final Map<UserId, User> store = new ConcurrentHashMap<>();

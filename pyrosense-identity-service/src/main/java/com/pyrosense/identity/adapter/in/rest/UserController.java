@@ -4,9 +4,12 @@ import com.pyrosense.identity.application.port.in.RegisterUserUseCase;
 import com.pyrosense.identity.application.port.in.RegisterUserUseCase.RegisterUserCommand;
 import com.pyrosense.identity.application.port.out.UserRepository;
 import com.pyrosense.identity.config.Audited;
+import com.pyrosense.identity.domain.model.Membership;
+import com.pyrosense.identity.domain.model.Role;
 import com.pyrosense.identity.domain.model.User;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import com.pyrosense.shared.security.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -14,12 +17,15 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -42,6 +48,27 @@ public class UserController {
                 new TenantId(UUID.fromString(request.tenantId())), request.roles());
         User user = registerUserUseCase.register(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(user));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<CurrentUserResponse> me(@AuthenticationPrincipal Jwt jwt) {
+        String sub = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        String name = jwt.getClaimAsString("name");
+        String tenantId = jwt.getClaimAsString("tenant_id");
+
+        List<String> roles = List.of();
+        @SuppressWarnings("unchecked")
+        var realmAccess = (java.util.Map<String, Object>) jwt.getClaim("realm_access");
+        if (realmAccess != null && realmAccess.containsKey("roles")) {
+            @SuppressWarnings("unchecked")
+            var realmRoles = (List<String>) realmAccess.get("roles");
+            roles = realmRoles;
+        }
+
+        return ResponseEntity.ok(new CurrentUserResponse(
+                sub, email, name != null ? name : email, tenantId, roles
+        ));
     }
 
     @GetMapping("/{userId}")
@@ -87,4 +114,7 @@ public class UserController {
 
     record UserResponse(String id, String email, String fullName, String status,
                          Instant createdAt, Instant lastLoginAt) {}
+
+    record CurrentUserResponse(String id, String email, String fullName,
+                                String tenantId, List<String> roles) {}
 }

@@ -24,6 +24,21 @@ public class Tenant {
         this.updatedAt = this.createdAt;
     }
 
+    private Tenant(TenantId id, String name, String slug, boolean active,
+                   Instant createdAt, Instant updatedAt) {
+        this.id = Objects.requireNonNull(id);
+        this.name = name;
+        this.slug = slug;
+        this.active = active;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
+    public static Tenant reconstitute(TenantId id, String name, String slug, boolean active,
+                                       Instant createdAt, Instant updatedAt) {
+        return new Tenant(id, name, slug, active, createdAt, updatedAt);
+    }
+
     public void deactivate() {
         this.active = false;
         this.updatedAt = ClockProvider.now();

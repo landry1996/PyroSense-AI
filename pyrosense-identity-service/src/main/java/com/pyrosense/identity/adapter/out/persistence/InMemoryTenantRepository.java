@@ -3,6 +3,7 @@ package com.pyrosense.identity.adapter.out.persistence;
 import com.pyrosense.identity.application.port.out.TenantRepository;
 import com.pyrosense.identity.domain.model.Tenant;
 import com.pyrosense.shared.id.TenantId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@Profile("inmemory")
 public class InMemoryTenantRepository implements TenantRepository {
 
     private final Map<TenantId, Tenant> store = new ConcurrentHashMap<>();

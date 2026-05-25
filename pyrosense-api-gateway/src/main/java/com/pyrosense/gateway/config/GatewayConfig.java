@@ -46,6 +46,8 @@ public class GatewayConfig {
                         .uri(identityUrl))
                 .route("identity-tenants", r -> r.path("/api/v1/tenants/**")
                         .uri(identityUrl))
+                .route("identity-audit", r -> r.path("/api/v1/audit-log/**")
+                        .uri(identityUrl))
 
                 // Device Service
                 .route("devices", r -> r.path("/api/v1/devices/**")

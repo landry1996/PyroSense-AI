@@ -28,6 +28,21 @@ public class Membership {
         this.createdAt = ClockProvider.now();
     }
 
+    private Membership(UUID id, UserId userId, TenantId tenantId, Set<Role> roles,
+                       boolean active, Instant createdAt) {
+        this.id = Objects.requireNonNull(id);
+        this.userId = Objects.requireNonNull(userId);
+        this.tenantId = Objects.requireNonNull(tenantId);
+        this.roles = EnumSet.copyOf(Objects.requireNonNull(roles));
+        this.active = active;
+        this.createdAt = createdAt;
+    }
+
+    public static Membership reconstitute(UUID id, UserId userId, TenantId tenantId,
+                                           Set<Role> roles, boolean active, Instant createdAt) {
+        return new Membership(id, userId, tenantId, roles, active, createdAt);
+    }
+
     public void addRole(Role role) {
         this.roles.add(role);
     }

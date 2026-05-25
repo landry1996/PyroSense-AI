@@ -7,6 +7,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/pyrosense_identity
     username: ${DB_USERNAME:pyrosense}
     password: ${DB_PASSWORD:pyrosense}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 5000
   jpa:
     hibernate:
       ddl-auto: validate

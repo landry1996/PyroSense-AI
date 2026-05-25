@@ -3,6 +3,7 @@ package com.pyrosense.identity.adapter.out.persistence;
 import com.pyrosense.identity.application.port.out.DeviceCredentialRepository;
 import com.pyrosense.identity.domain.model.DeviceCredential;
 import com.pyrosense.shared.id.DeviceId;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
+@Profile("inmemory")
 public class InMemoryDeviceCredentialRepository implements DeviceCredentialRepository {
 
     private final Map<DeviceId, DeviceCredential> store = new ConcurrentHashMap<>();

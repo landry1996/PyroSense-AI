@@ -31,6 +31,28 @@ public class DeviceCredential {
         this.authenticationCount = 0;
     }
 
+    private DeviceCredential(UUID id, DeviceId deviceId, TenantId tenantId, String tokenHash,
+                             Instant expiresAt, boolean active, Instant createdAt,
+                             Instant lastAuthenticatedAt, int authenticationCount) {
+        this.id = id;
+        this.deviceId = deviceId;
+        this.tenantId = tenantId;
+        this.tokenHash = tokenHash;
+        this.expiresAt = expiresAt;
+        this.active = active;
+        this.createdAt = createdAt;
+        this.lastAuthenticatedAt = lastAuthenticatedAt;
+        this.authenticationCount = authenticationCount;
+    }
+
+    public static DeviceCredential reconstitute(UUID id, DeviceId deviceId, TenantId tenantId,
+                                                 String tokenHash, Instant expiresAt, boolean active,
+                                                 Instant createdAt, Instant lastAuthenticatedAt,
+                                                 int authenticationCount) {
+        return new DeviceCredential(id, deviceId, tenantId, tokenHash, expiresAt, active,
+                createdAt, lastAuthenticatedAt, authenticationCount);
+    }
+
     public boolean isValid() {
         return active && ClockProvider.now().isBefore(expiresAt);
     }
