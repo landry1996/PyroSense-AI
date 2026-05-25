@@ -144,6 +144,19 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
         return count != null ? count : 0;
     }
 
+    @Override
+    public long countOverdueByTenantId(TenantId tenantId) {
+        Long count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM interventions
+                WHERE tenant_id = ?
+                  AND status NOT IN ('COMPLETED', 'CANCELLED')
+                  AND scheduled_at IS NOT NULL
+                  AND scheduled_at < NOW()
+                """,
+                Long.class, tenantId.value());
+        return count != null ? count : 0;
+    }
+
     private Timestamp toTimestamp(Instant instant) {
         return instant != null ? Timestamp.from(instant) : null;
     }

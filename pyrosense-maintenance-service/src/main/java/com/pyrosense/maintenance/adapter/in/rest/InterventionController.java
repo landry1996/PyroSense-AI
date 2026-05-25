@@ -116,6 +116,14 @@ public class InterventionController {
         return ResponseEntity.ok(toResponse(result));
     }
 
+    @GetMapping("/overdue")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
+    public ResponseEntity<OverdueResponse> getOverdue() {
+        TenantId currentTenant = TenantContext.require();
+        int count = queryUseCase.countOverdue(currentTenant);
+        return ResponseEntity.ok(new OverdueResponse(count));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
     public ResponseEntity<InterventionResponse> getById(@PathVariable UUID id) {
@@ -277,6 +285,8 @@ public class InterventionController {
 
     record DiagnosticResponse(String observations, String measurementsTaken,
                                String recommendations, String diagnosticBy, Instant recordedAt) {}
+
+    record OverdueResponse(int count) {}
 
     record KanbanResponse(
             List<InterventionResponse> created,

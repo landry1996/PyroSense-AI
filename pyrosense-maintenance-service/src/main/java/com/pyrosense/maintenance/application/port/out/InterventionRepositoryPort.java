@@ -32,4 +32,6 @@ public interface InterventionRepositoryPort {
     long countByTenantIdAndStatus(TenantId tenantId, InterventionStatus status);
 
     long countFalsePositivesByTenantId(TenantId tenantId);
+
+    long countOverdueByTenantId(TenantId tenantId);
 }

@@ -1,6 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,6 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { HttpClient } from '@angular/common/http';
 import { ApiService, AlertDetailResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -128,6 +129,9 @@ import { AuthService } from '../../core/services/auth.service';
                     </button>
                     <button mat-stroked-button (click)="showFalsePositiveForm = true">
                       <mat-icon>cancel</mat-icon> Faux positif
+                    </button>
+                    <button mat-raised-button color="warn" (click)="createIntervention()">
+                      <mat-icon>build</mat-icon> Creer intervention
                     </button>
                   }
                 </div>
@@ -257,6 +261,8 @@ export class AlertDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
+    private http: HttpClient,
     private api: ApiService,
     private auth: AuthService,
     private snackBar: MatSnackBar,
@@ -314,6 +320,23 @@ export class AlertDetailComponent implements OnInit {
         this.newComment = '';
       },
       error: () => this.snackBar.open('Erreur lors de l\'ajout du commentaire', 'OK', { duration: 3000 }),
+    });
+  }
+
+  createIntervention() {
+    const a = this.alert();
+    if (!a) return;
+    this.http.post<any>('/api/v1/interventions', {
+      alertId: a.id,
+      deviceId: a.deviceId,
+      tenantId: a.tenantId,
+    }).subscribe({
+      next: (intervention) => {
+        this.snackBar.open('Intervention creee', 'Voir', { duration: 5000 }).onAction().subscribe(() => {
+          this.router.navigate(['/interventions', intervention.id]);
+        });
+      },
+      error: () => this.snackBar.open('Erreur lors de la creation', 'OK', { duration: 3000 }),
     });
   }
 

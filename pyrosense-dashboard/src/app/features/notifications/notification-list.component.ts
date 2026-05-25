@@ -1,24 +1,42 @@
 import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
+import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
 import { Subject, takeUntil } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { ApiService, NotificationResponse, NotificationStatistics } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+
+interface NotificationPreferences {
+  userId: string;
+  consentEmail: boolean;
+  consentSms: boolean;
+  consentPush: boolean;
+}
 
 @Component({
   selector: 'app-notification-list',
   standalone: true,
   imports: [
-    CommonModule, MatTableModule, MatIconModule,
+    CommonModule, FormsModule, MatTableModule, MatTabsModule, MatIconModule,
     MatCardModule, MatProgressSpinnerModule, MatChipsModule,
+    MatSlideToggleModule, MatSnackBarModule, MatButtonModule,
   ],
   template: `
     <div class="notifications-container">
       <h1>Notifications</h1>
+
+      <mat-tab-group>
+        <mat-tab label="Historique">
+          <div class="tab-content">
 
       @if (statistics()) {
         <div class="stats-row">
@@ -101,6 +119,55 @@ import { AuthService } from '../../core/services/auth.service';
           </mat-card>
         }
       }
+
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Preferences">
+          <div class="tab-content">
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>Canaux de notification</mat-card-title>
+                <mat-card-subtitle>Choisissez comment recevoir vos notifications</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="pref-list">
+                  <div class="pref-item">
+                    <div class="pref-info">
+                      <mat-icon>email</mat-icon>
+                      <div>
+                        <div class="pref-label">Email</div>
+                        <div class="pref-desc">Recevoir les notifications par email</div>
+                      </div>
+                    </div>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentEmail" (change)="savePreferences()"></mat-slide-toggle>
+                  </div>
+                  <div class="pref-item">
+                    <div class="pref-info">
+                      <mat-icon>sms</mat-icon>
+                      <div>
+                        <div class="pref-label">SMS</div>
+                        <div class="pref-desc">Recevoir les alertes critiques par SMS</div>
+                      </div>
+                    </div>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentSms" (change)="savePreferences()"></mat-slide-toggle>
+                  </div>
+                  <div class="pref-item">
+                    <div class="pref-info">
+                      <mat-icon>notifications_active</mat-icon>
+                      <div>
+                        <div class="pref-label">Push</div>
+                        <div class="pref-desc">Notifications push dans le navigateur</div>
+                      </div>
+                    </div>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentPush" (change)="savePreferences()"></mat-slide-toggle>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
     </div>
   `,
   styles: [`
@@ -127,6 +194,13 @@ import { AuthService } from '../../core/services/auth.service';
     .empty-card { text-align: center; padding: 32px; }
     .empty-card mat-icon { font-size: 48px; width: 48px; height: 48px; color: #bbb; }
     .empty-card p { color: #666; margin-top: 8px; }
+    .tab-content { padding: 24px 0; }
+    .pref-list { display: flex; flex-direction: column; gap: 16px; padding: 16px 0; }
+    .pref-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; }
+    .pref-info { display: flex; align-items: center; gap: 12px; }
+    .pref-info mat-icon { color: #5c6bc0; }
+    .pref-label { font-weight: 500; }
+    .pref-desc { font-size: 12px; color: #666; margin-top: 2px; }
   `],
 })
 export class NotificationListComponent implements OnInit, OnDestroy {
@@ -135,14 +209,16 @@ export class NotificationListComponent implements OnInit, OnDestroy {
   notifications = signal<NotificationResponse[]>([]);
   statistics = signal<NotificationStatistics | null>(null);
   loading = signal(true);
+  preferences = signal<NotificationPreferences>({ userId: '', consentEmail: true, consentSms: false, consentPush: true });
 
   displayedColumns = ['severity', 'subject', 'channel', 'status', 'createdAt'];
 
-  constructor(private api: ApiService, private auth: AuthService) {}
+  constructor(private api: ApiService, private auth: AuthService, private http: HttpClient, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.loadNotifications();
     this.loadStatistics();
+    this.loadPreferences();
   }
 
   ngOnDestroy() { this.destroy$.next(); this.destroy$.complete(); }
@@ -179,5 +255,23 @@ export class NotificationListComponent implements OnInit, OnDestroy {
       PENDING: 'En attente', SENT: 'Envoyee', FAILED: 'Echouee', RETRYING: 'Reessai',
     };
     return labels[status] || status;
+  }
+
+  savePreferences(): void {
+    const userId = this.auth.getUserId();
+    this.http.put(`/api/v1/notifications/preferences/${userId}`, this.preferences())
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => this.snackBar.open('Preferences sauvegardees', 'OK', { duration: 2000 }),
+        error: () => this.snackBar.open('Erreur de sauvegarde', 'OK', { duration: 3000 }),
+      });
+  }
+
+  private loadPreferences(): void {
+    const userId = this.auth.getUserId();
+    if (!userId) return;
+    this.http.get<NotificationPreferences>(`/api/v1/notifications/preferences/${userId}`)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (prefs) => this.preferences.set(prefs) });
   }
 }

@@ -5,6 +5,7 @@ import com.pyrosense.scoring.application.port.out.RiskModelPort;
 import com.pyrosense.scoring.application.port.out.ScoringEventPublisherPort;
 import com.pyrosense.scoring.application.usecase.CalculateRiskService;
 import com.pyrosense.scoring.application.usecase.GetRiskScoreService;
+import com.pyrosense.scoring.application.usecase.GetTenantRiskService;
 import com.pyrosense.scoring.domain.model.ScoringWeights;
 import com.pyrosense.scoring.domain.scoring.RiskScoringEngine;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -47,5 +48,10 @@ public class UseCaseConfig {
     @Bean
     public GetRiskScoreService getRiskScoreService(RiskAssessmentRepositoryPort repository) {
         return new GetRiskScoreService(repository);
+    }
+
+    @Bean
+    public GetTenantRiskService getTenantRiskService(RiskAssessmentRepositoryPort repository) {
+        return new GetTenantRiskService(repository);
     }
 }

@@ -208,6 +208,49 @@ export interface NotificationStatistics {
   retrying: number;
 }
 
+export interface DeviceStatisticsResponse {
+  total: number;
+  active: number;
+  offline: number;
+  provisioned: number;
+  revoked: number;
+}
+
+export interface TenantRiskSummaryResponse {
+  avgScore: number;
+  trend: string;
+  buildingsAtRisk: number;
+}
+
+export interface RiskHistoryPoint {
+  date: string;
+  score: number;
+}
+
+export interface BuildingResponse {
+  id: string;
+  name: string;
+  address: string;
+  totalDevices: number;
+  activeDevices: number;
+  riskScore: number;
+  status: string;
+  lastAlertAt: string | null;
+}
+
+export interface InterventionOverdueResponse {
+  count: number;
+}
+
+export interface AnomalyResponse {
+  id: string;
+  type: string;
+  severity: string;
+  description: string;
+  detectedAt: string;
+  score: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly baseUrl = '/api/v1';
@@ -380,6 +423,57 @@ export class ApiService {
 
   getNotificationStatistics(): Observable<NotificationStatistics> {
     return this.http.get<NotificationStatistics>(`${this.baseUrl}/notifications/statistics`);
+  }
+
+  // Device Anomalies
+  getDeviceAnomalies(deviceId: string): Observable<AnomalyResponse[]> {
+    return this.http.get<AnomalyResponse[]>(`${this.baseUrl}/analysis/anomalies/${deviceId}`);
+  }
+
+  // Device Statistics
+  getDeviceStatistics(): Observable<DeviceStatisticsResponse> {
+    return this.http.get<DeviceStatisticsResponse>(`${this.baseUrl}/devices/statistics`);
+  }
+
+  // Risk - Tenant level
+  getTenantRiskSummary(): Observable<TenantRiskSummaryResponse> {
+    return this.http.get<TenantRiskSummaryResponse>(`${this.baseUrl}/risk/tenant/summary`);
+  }
+
+  getTenantRiskHistory(days = 30): Observable<RiskHistoryPoint[]> {
+    const params = new HttpParams().set('days', days);
+    return this.http.get<RiskHistoryPoint[]>(`${this.baseUrl}/risk/tenant/history`, { params });
+  }
+
+  getBuildingRiskHistory(buildingId: string, days = 30): Observable<RiskHistoryPoint[]> {
+    const params = new HttpParams().set('days', days);
+    return this.http.get<RiskHistoryPoint[]>(`${this.baseUrl}/risk/buildings/${buildingId}/history`, { params });
+  }
+
+  // Buildings
+  getBuildings(): Observable<BuildingResponse[]> {
+    return this.http.get<BuildingResponse[]>(`${this.baseUrl}/buildings`);
+  }
+
+  getBuildingById(buildingId: string): Observable<BuildingResponse> {
+    return this.http.get<BuildingResponse>(`${this.baseUrl}/buildings/${buildingId}`);
+  }
+
+  // Interventions - overdue
+  getInterventionsOverdue(): Observable<InterventionOverdueResponse> {
+    return this.http.get<InterventionOverdueResponse>(`${this.baseUrl}/interventions/overdue`);
+  }
+
+  // Alerts by building
+  getAlertsByBuilding(buildingId: string, page = 0, size = 50): Observable<AlertDetailResponse[]> {
+    const params = new HttpParams().set('buildingId', buildingId).set('page', page).set('size', size);
+    return this.http.get<AlertDetailResponse[]>(`${this.baseUrl}/alerts`, { params });
+  }
+
+  // Interventions by building
+  getInterventionsByBuilding(buildingId: string, page = 0, size = 50): Observable<InterventionResponse[]> {
+    const params = new HttpParams().set('buildingId', buildingId).set('page', page).set('size', size);
+    return this.http.get<InterventionResponse[]>(`${this.baseUrl}/interventions`, { params });
   }
 
   // User

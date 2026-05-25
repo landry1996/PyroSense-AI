@@ -7,10 +7,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil } from 'rxjs';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/services/api.service';
 
 @Component({
@@ -19,7 +23,8 @@ import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/ser
   imports: [
     CommonModule, RouterModule, FormsModule,
     MatTableModule, MatButtonModule, MatIconModule,
-    MatSelectModule, MatFormFieldModule,
+    MatSelectModule, MatFormFieldModule, MatInputModule,
+    MatDatepickerModule, MatNativeDateModule,
     MatPaginatorModule, MatCardModule, MatProgressSpinnerModule,
   ],
   template: `
@@ -82,6 +87,20 @@ import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/ser
             <mat-option value="WARNING">Warning</mat-option>
             <mat-option value="INFO">Info</mat-option>
           </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Du</mat-label>
+          <input matInput [matDatepicker]="fromPicker" [(ngModel)]="fromDate" (dateChange)="onFilterChange()">
+          <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+          <mat-datepicker #fromPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Au</mat-label>
+          <input matInput [matDatepicker]="toPicker" [(ngModel)]="toDate" (dateChange)="onFilterChange()">
+          <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+          <mat-datepicker #toPicker></mat-datepicker>
         </mat-form-field>
       </div>
 
@@ -193,12 +212,14 @@ export class AlertListComponent implements OnInit, OnDestroy {
 
   statusFilter = '';
   severityFilter = '';
+  fromDate: Date | null = null;
+  toDate: Date | null = null;
   pageSize = 50;
   currentPage = 0;
 
   displayedColumns = ['severity', 'title', 'type', 'status', 'createdAt', 'sla'];
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private http: HttpClient) {}
 
   ngOnInit() {
     this.loadStatistics();
@@ -223,7 +244,13 @@ export class AlertListComponent implements OnInit, OnDestroy {
 
   private loadAlerts() {
     this.loading.set(true);
-    this.api.getAlertsList(this.currentPage, this.pageSize, this.statusFilter || undefined, this.severityFilter || undefined)
+    let params = new HttpParams().set('page', this.currentPage).set('size', this.pageSize);
+    if (this.statusFilter) params = params.set('status', this.statusFilter);
+    if (this.severityFilter) params = params.set('severity', this.severityFilter);
+    if (this.fromDate) params = params.set('from', this.fromDate.toISOString());
+    if (this.toDate) params = params.set('to', this.toDate.toISOString());
+
+    this.http.get<AlertDetailResponse[]>('/api/v1/alerts', { params })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (alerts) => {

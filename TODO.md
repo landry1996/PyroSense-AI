@@ -395,81 +395,9 @@
 
 ## TODO - Next Steps
 
-### Phase 1: Core Implementation (Priority)
-- [x] Flyway migrations: device-service, ingestion-service, signal-analysis-service
-- [x] JPA entities + repositories: device-service, ingestion-service, signal-analysis-service
-- [x] REST controllers: device-service, ingestion-service, signal-analysis-service
-- [x] Kafka producers: device-service, ingestion-service, signal-analysis-service
-- [x] Kafka consumers: signal-analysis-service (telemetry-events)
-- [x] MQTT listener: ingestion-service (HiveMQ, topic subscriptions)
-- [x] Redis idempotency adapter: ingestion-service
-- [x] Signal analysis: hybrid detection (z-score, micro-arc, temperature, THD drift, exponential smoothing)
-- [x] ML-ready port: MachineLearningInferencePort + NoOp stub
-- [x] Risk scoring: weighted multi-factor formula, recency decay, repetition boost, ML-ready port
-- [x] All 10 services fully implemented: device, ingestion, signal-analysis, risk-scoring, alerting, notification, reporting, maintenance, identity, API gateway
-- [ ] Redis cache adapter (scoring service)
-- [ ] MapStruct mappers (entity <-> domain)
-- [ ] Global exception handlers (RFC 7807)
+### Phase 1-4: DONE (voir section DONE ci-dessus)
 
-### Phase 2: Integration
-- [ ] Keycloak realm configuration (realm export JSON)
-- [ ] Service-to-service Kafka event wiring
-- [ ] API Gateway JWT validation end-to-end
-- [ ] Full signal pipeline: MQTT -> Ingestion -> Kafka -> Analysis -> Scoring -> Alert -> Notification
-
-### Phase 3: Quality (IMPLEMENTED)
-- [x] Unit tests: domain models (all services, 400+ tests total)
-- [x] Unit tests: use cases (mocked ports)
-- [x] ArchUnit tests: hexagonal rules per service (10 rules each, 9 services)
-- [x] ArchUnit tests: platform-wide (no cycles, no cross-context, naming conventions)
-- [x] Integration tests with Testcontainers (PostgreSQL, Kafka, Redis)
-- [x] Security tests (TenantSecurityTest, actuator protection, header sanitization)
-- [x] Performance smoke tests (ingestion throughput, risk scoring latency)
-- [x] JaCoCo: domain 90%, application 85%, adapters excluded from minimum
-- [x] JaCoCo exclusions: *Application.java, *Config.java, DTOs
-- [x] Spotless formatting (Palantir Java Format, enforced in CI)
-- [ ] Contract tests (Spring Cloud Contract) — planned Phase 5
-
-### Phase 4: Production Readiness
-- [x] Dockerfiles per service (multi-stage, non-root, healthcheck)
-- [x] Docker Compose with all services (profiles: services, simulator, full)
-- [x] GitHub Actions CI/CD pipeline (6 jobs: build, integration-tests, coverage, security-scan, docker-build, code-quality)
-- [x] Health checks and readiness probes (Spring Boot Actuator on all services)
-- [x] Distributed tracing (OpenTelemetry via Micrometer bridge, OTLP HTTP)
-- [x] Observability stack (Prometheus + Grafana + Loki + OTEL Collector)
-- [x] Structured logging (JSON in prod, logstash-logback-encoder)
-- [x] Prometheus alerts (14 production rules)
-- [x] Grafana dashboards (3 provisioned: overview, ingestion, alerting)
-- [x] API documentation (comprehensive docs/api-documentation.md, SpringDoc integration planned)
-- [x] Rate limiting (Redis-based via API Gateway)
-- [x] Security hardening (CORS, CSP, HSTS, XSS, CSRF, rate limiting)
-- [x] Multi-tenancy via JWT tenant_id claim + TenantContext ThreadLocal
-- [x] RBAC with 8 roles and 34 permissions (method-level security)
-- [x] Device authentication (HMAC-SHA256, rotation, expiry)
-- [x] Audit logging (AOP-based, structured)
-- [x] Anti mass-assignment (@AllowedFields)
-- [x] Replay attack prevention (HMAC + timestamp window)
-- [x] Payload integrity (HMAC signature on device telemetry)
-
-### Phase 4b: Audit Remediation (IN PROGRESS)
-- [x] Fix CRITICAL: Tenant isolation in AlertController (tenant validation, pagination, @PreAuthorize)
-- [x] Fix CRITICAL: HTTP timeout on inter-service calls (2s connect, 5s read)
-- [x] Fix CRITICAL: Gateway route timeouts (3s connect, 10s response)
-- [x] Fix HIGH: Kafka producers — add send failure callbacks (5 services)
-- [x] Fix HIGH: Kafka consumers — add DefaultErrorHandler with retry (3 services)
-- [x] Fix HIGH: Graceful shutdown configured (all 10 services)
-- [x] Fix HIGH: HikariCP pool tuning (8 database services)
-- [x] docs/audit-report.md — Full 136-finding audit report
-- [x] Fix HIGH: Tenant validation on remaining controllers (device, notification, maintenance, reporting, scoring)
-- [x] Fix HIGH: @PreAuthorize on remaining controllers (scoring, analysis, ingestion)
-- [x] Fix HIGH: MQTT auto-reconnect + thread pool offloading
-- [x] Fix HIGH: Device authorization caching (eliminate per-message HTTP calls)
-- [x] Fix HIGH: Batch DB inserts for telemetry (TODO documented, saveBatch ready)
-- [x] Fix HIGH: Pagination on remaining list endpoints (notification, maintenance, reporting, identity)
-- [x] Fix MEDIUM: Fix swallowed exceptions in persistence adapters (maintenance, reporting)
-- [x] Fix MEDIUM: Align Prometheus metric names with Grafana dashboards (pyrosense.* prefix)
-- [x] Fix MEDIUM: Enable Kafka trace propagation (observationEnabled on 5 services)
-- [x] Fix MEDIUM: Add GlobalExceptionHandler to identity/ingestion/scoring/analysis services
+### Phase 4b: Audit Remediation (DONE sauf 1 item)
 - [ ] Fix MEDIUM: Identity-service Flyway migrations (replace in-memory repos)
 
 ### Phase 5: Advanced Features
@@ -480,57 +408,81 @@
 - [ ] Mobile push notifications (Firebase)
 - [ ] Keycloak realm export (users, roles, client configuration)
 
-### Phase 6: MVP 2 — Dashboard + Reporting + Intervention + Notifications (docs/mvp2-plan.md)
+### Phase 6: MVP 2 — Dashboard (DELIVERED — 6 sprints committed)
 
-**Stack:** Java 21, Spring Boot 3.4.x, Angular 18, PostgreSQL, TimescaleDB, Kafka, Redis
+**Livraison**: Sprints 1-6 commits sur main (c4c63d3). Fonctionnel mais incomplet vs spec cible.
 
-#### Sprint 1 (S1) — Fondations Frontend + Auth
-- [ ] Scaffold Angular 18 SPA (`pyrosense-dashboard`)
-- [ ] Angular routing, guards, interceptors (JWT, tenant)
-- [ ] Login page (Keycloak OIDC redirect)
-- [ ] Layout principal (sidebar, topbar, notifications badge)
-- [ ] Identity-service: Flyway migrations (replace in-memory repos)
-- [ ] Identity-service: GET /api/v1/users/me endpoint
-- [ ] CORS configuration gateway ↔ Angular
+- [x] Scaffold Angular 18 SPA (pyrosense-dashboard)
+- [x] Routing, guards (auth + role), interceptors
+- [x] Layout (sidebar, topbar, notifications badge)
+- [x] Dashboard overview (5 stat cards, mock fallback)
+- [x] Building list + detail (mock data, polling capteurs)
+- [x] Device detail (Chart.js temperature + puissance/THD, time range)
+- [x] Alert list (filtres severite/statut, pagination, stats cards)
+- [x] Alert detail (timeline, acknowledge, resolve, false-positive, comments)
+- [x] Intervention list (kanban 5 colonnes, stats)
+- [x] Intervention detail (lifecycle, diagnostic, completion)
+- [x] Report list (filtre type, download PDF securise token)
+- [x] Notification list (stats cards, severity/channel/status)
+- [x] Admin (users table, audit log)
+- [x] Backend: AlertController enrichi (buildingId filter, from/to)
+- [x] Backend: InterventionController /kanban endpoint
+- [x] Backend: AuditLogController (GET /api/v1/audit-log)
 
-#### Sprint 2 (S2) — Dashboard Temps Réel
-- [ ] Dashboard overview screen (scores globaux, alertes actives, appareils)
-- [ ] Risk-scoring-service: GET /buildings/{id}/summary enrichi
-- [ ] Device-service: GET /devices?tenantId (liste + statut)
-- [ ] Polling 30s pour scores temps réel
-- [ ] Composants Angular: risk-gauge, device-card, alert-badge
-- [ ] Building/panel/circuit drill-down screens
+### Phase 7: Dashboard Complet — Ecarts a Combler (docs/dashboard-ux-api-plan.md)
 
-#### Sprint 3 (S3) — Gestion des Alertes
-- [ ] Alert list screen (filtres, tri, pagination)
-- [ ] Alert detail screen (timeline, comments, actions)
-- [ ] Alerting-service: POST acknowledge, resolve, false-positive, comment
-- [ ] Alert statistics screen (charts par sévérité, tendances)
-- [ ] Notifications push navigateur (Service Worker)
+**Plan UX/API detaille**: voir `docs/dashboard-ux-api-plan.md` (12 livrables)
 
-#### Sprint 4 (S4) — Interventions Maintenance
-- [ ] Intervention list screen (statuts, filtres, assignation)
-- [ ] Intervention detail screen (lifecycle, diagnostic, risk impact)
-- [ ] Maintenance-service: POST schedule, assign, start, complete, cancel
-- [ ] Formulaire de diagnostic terrain (avec photos — upload S3/MinIO)
-- [ ] KPI maintenance: MTTR, taux confirmation, interventions/mois
+#### Sprint A — Refactoring Architecture + Dashboard Complet (5j)
+- [ ] Restructurer features/ en containers/ + components/ (smart/presentational)
+- [ ] Creer services d'etat signal-based (DashboardState, BuildingState, etc.)
+- [ ] Dashboard: ajouter metrics manquants (buildings count, offline devices, overdue interventions)
+- [ ] Dashboard: graphique evolution risque 30 jours (Chart.js line)
+- [ ] Dashboard: raccourcis rapides (cards cliquables)
+- [ ] Backend: GET /api/v1/devices/statistics?tenantId (compteurs par statut)
+- [ ] Backend: GET /api/v1/risk-scoring/tenant/summary (score moyen + trend)
+- [ ] Backend: GET /api/v1/risk-scoring/tenant/history?days=30 (evolution globale)
+- [ ] Supprimer tous mocks/fallbacks (donnees reelles obligatoires)
 
-#### Sprint 5 (S5) — Reporting + Notifications
-- [ ] Report generation screen (type, période, bâtiment)
-- [ ] Report download (secure token, PDF)
-- [ ] Reporting-service: enrichir avec données réelles cross-service
-- [ ] Notification preferences screen (canaux, consentement)
-- [ ] Notification-service: user preferences CRUD
-- [ ] Notification history screen (liste, statuts, retry)
+#### Sprint B — Buildings + Devices Reels (5j)
+- [ ] Building list: remplacer mock par API reelle
+- [ ] Building list: cards avec statut (OK/WATCH/AT_RISK/CRITICAL), recherche, tri
+- [ ] Building detail: onglet Risque (chart historique score)
+- [ ] Building detail: onglet Alertes (filtrees par buildingId)
+- [ ] Building detail: onglet Interventions (filtrees par buildingId)
+- [ ] Device detail: section anomalies recentes (top 10)
+- [ ] Device detail: heartbeat timeline + badge statut
+- [ ] Backend: BuildingController dans device-service (GET /buildings?tenantId, GET /buildings/:id)
+- [ ] Backend: GET /api/v1/risk-scoring/buildings/:id/history?days=30
 
-#### Sprint 6 (S6) — Audit Trail + Polish + Tests E2E
-- [ ] Audit trail screen (qui a fait quoi, quand)
-- [ ] Identity-service: GET /api/v1/audit-log (paginated, filtré)
-- [ ] User management screen (ADMIN only)
-- [ ] Cypress E2E tests (golden paths: login → dashboard → alert → intervention → report)
-- [ ] Contract tests (Spring Cloud Contract) backend ↔ frontend
-- [ ] Performance tests (k6: 100 users, API < 200ms P95)
-- [ ] Documentation: docs/mvp2-deployment.md
+#### Sprint C — Alertes + Interventions Enrichis (4j)
+- [ ] Alertes: filtre periode (date range picker Material)
+- [ ] Alertes: bouton "Creer intervention" sur detail (pre-remplit alertId + deviceId)
+- [ ] Interventions kanban: afficher date prevue sur cartes
+- [ ] Interventions: resoudre nom electricien (assigneeName)
+- [ ] Backend: enrichir InterventionResponse (+scheduledDate, +assigneeName)
+- [ ] Backend: GET /api/v1/interventions/overdue
+- [ ] Error interceptor global (401/403/429/500 handling unifie)
+
+#### Sprint D — Reports + Notifications + Settings (5j)
+- [ ] Reports: formulaire generation on-demand (type, periode, batiment) — dialog Material
+- [ ] Reports: indicateur progression generation
+- [ ] Notifications: sous-onglet Preferences (canaux, consentement toggle)
+- [ ] Notifications: masquage RGPD dans historique
+- [ ] Settings: ecran complet (seuils alertes, contacts urgence, info tenant)
+- [ ] Backend: GET/PUT /api/v1/notifications/preferences/:userId
+- [ ] Backend: Flyway V002 notification_preferences table
+- [ ] Backend: GET/PUT /api/v1/tenants/:id/settings (seuils JSON)
+- [ ] Backend: CRUD /api/v1/tenants/:id/emergency-contacts
+
+#### Sprint E — Polish + Tests + Accessibilite (4j)
+- [ ] Responsive: breakpoints mobile/tablet/desktop sur tous ecrans
+- [ ] Accessibilite: aria-labels, focus management, contraste WCAG AA
+- [ ] Skeleton loaders (remplacement spinners)
+- [ ] Empty states contextuels
+- [ ] Tests unitaires Jest (composants + services, objectif 80%)
+- [ ] Tests E2E Cypress (5 golden paths: login→dashboard→building→alert→intervention→report)
+- [ ] unsavedChangesGuard sur formulaires settings/diagnostic
 
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 

@@ -52,6 +52,11 @@ public class GetInterventionService implements GetInterventionQuery {
     }
 
     @Override
+    public int countOverdue(TenantId tenantId) {
+        return (int) repository.countOverdueByTenantId(tenantId);
+    }
+
+    @Override
     public InterventionStatistics getStatistics(TenantId tenantId) {
         long total = repository.countByTenantId(tenantId);
         long inProgress = repository.countByTenantIdAndStatus(tenantId, InterventionStatus.IN_PROGRESS);

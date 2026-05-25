@@ -75,6 +75,13 @@ export const routes: Routes = [
       import('./features/notifications/notification-list.component').then(m => m.NotificationListComponent),
   },
   {
+    path: 'settings',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN'] },
+    loadComponent: () =>
+      import('./features/settings/settings.component').then(m => m.SettingsComponent),
+  },
+  {
     path: 'admin',
     canActivate: [authGuard, roleGuard],
     data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN'] },

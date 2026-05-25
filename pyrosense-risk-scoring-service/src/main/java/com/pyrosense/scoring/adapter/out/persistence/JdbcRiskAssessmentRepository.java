@@ -8,6 +8,7 @@ import com.pyrosense.scoring.domain.model.*;
 import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.ElectricalPanelId;
+import com.pyrosense.shared.id.TenantId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -84,6 +85,42 @@ public class JdbcRiskAssessmentRepository implements RiskAssessmentRepositoryPor
                 SELECT score FROM risk_assessments WHERE device_id = ?
                 ORDER BY computed_at DESC LIMIT ?
                 """, Integer.class, deviceId.value(), limit);
+    }
+
+    @Override
+    public List<DailyRiskScore> findDailyAveragesByTenant(TenantId tenantId, Instant from) {
+        return jdbcTemplate.query("""
+                SELECT DATE(computed_at) AS day, AVG(score) AS avg_score
+                FROM risk_assessments
+                WHERE tenant_id = ? AND computed_at > ?
+                GROUP BY DATE(computed_at)
+                ORDER BY DATE(computed_at)
+                """, (rs, rowNum) -> new DailyRiskScore(
+                        rs.getString("day"),
+                        rs.getDouble("avg_score")
+                ), tenantId.value(), Timestamp.from(from));
+    }
+
+    @Override
+    public double findAverageScoreByTenantBetween(TenantId tenantId, Instant from, Instant to) {
+        Double avg = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(AVG(score), 0) FROM risk_assessments
+                WHERE tenant_id = ? AND computed_at BETWEEN ? AND ?
+                """, Double.class, tenantId.value(), Timestamp.from(from), Timestamp.from(to));
+        return avg != null ? avg : 0.0;
+    }
+
+    @Override
+    public int countBuildingsAtRisk(TenantId tenantId, int threshold) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(DISTINCT building_id) FROM (
+                    SELECT DISTINCT ON (building_id) building_id, score
+                    FROM risk_assessments
+                    WHERE tenant_id = ? AND building_id IS NOT NULL
+                    ORDER BY building_id, computed_at DESC
+                ) latest WHERE score > ?
+                """, Integer.class, tenantId.value(), threshold);
+        return count != null ? count : 0;
     }
 
     private RiskAssessment mapRow(ResultSet rs, int rowNum) throws SQLException {

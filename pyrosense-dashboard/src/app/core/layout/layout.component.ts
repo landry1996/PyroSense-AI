@@ -59,6 +59,10 @@ import { AuthService } from '../services/auth.service';
             <span matListItemTitle>Notifications</span>
           </a>
           @if (auth.hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')) {
+            <a mat-list-item routerLink="/settings" routerLinkActive="active">
+              <mat-icon matListItemIcon>settings</mat-icon>
+              <span matListItemTitle>Parametres</span>
+            </a>
             <a mat-list-item routerLink="/admin" routerLinkActive="active">
               <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
               <span matListItemTitle>Administration</span>

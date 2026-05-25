@@ -31,19 +31,22 @@ public class DeviceController {
     private final RevokeDeviceUseCase revokeDevice;
     private final GetDeviceQuery getDevice;
     private final RecordHeartbeatUseCase recordHeartbeat;
+    private final GetDeviceStatisticsQuery getDeviceStatistics;
 
     public DeviceController(RegisterDeviceUseCase registerDevice,
                             ProvisionDeviceUseCase provisionDevice,
                             ActivateDeviceUseCase activateDevice,
                             RevokeDeviceUseCase revokeDevice,
                             GetDeviceQuery getDevice,
-                            RecordHeartbeatUseCase recordHeartbeat) {
+                            RecordHeartbeatUseCase recordHeartbeat,
+                            GetDeviceStatisticsQuery getDeviceStatistics) {
         this.registerDevice = registerDevice;
         this.provisionDevice = provisionDevice;
         this.activateDevice = activateDevice;
         this.revokeDevice = revokeDevice;
         this.getDevice = getDevice;
         this.recordHeartbeat = recordHeartbeat;
+        this.getDeviceStatistics = getDeviceStatistics;
     }
 
     @PostMapping
@@ -110,6 +113,16 @@ public class DeviceController {
     public ResponseEntity<Void> heartbeat(@PathVariable UUID deviceId) {
         recordHeartbeat.execute(DeviceId.from(deviceId.toString()));
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/statistics")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    @Operation(summary = "Get device statistics for current tenant")
+    public ResponseEntity<DeviceStatisticsResponse> getStatistics() {
+        TenantId tenantId = TenantContext.require();
+        var stats = getDeviceStatistics.getByTenant(tenantId);
+        return ResponseEntity.ok(new DeviceStatisticsResponse(
+                stats.total(), stats.active(), stats.offline(), stats.provisioned(), stats.revoked()));
     }
 
     @GetMapping("/{deviceId}")

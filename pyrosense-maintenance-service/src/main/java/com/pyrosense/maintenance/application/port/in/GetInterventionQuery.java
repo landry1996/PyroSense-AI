@@ -25,6 +25,8 @@ public interface GetInterventionQuery {
 
     Optional<Intervention> findByAlert(AlertId alertId);
 
+    int countOverdue(TenantId tenantId);
+
     InterventionStatistics getStatistics(TenantId tenantId);
 
     record InterventionStatistics(

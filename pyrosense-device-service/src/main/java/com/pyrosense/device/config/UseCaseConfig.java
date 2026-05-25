@@ -48,4 +48,14 @@ public class UseCaseConfig {
     public RecordHeartbeatService recordHeartbeatService(DeviceRepositoryPort repository) {
         return new RecordHeartbeatService(repository);
     }
+
+    @Bean
+    public GetDeviceStatisticsService getDeviceStatisticsService(DeviceRepositoryPort repository) {
+        return new GetDeviceStatisticsService(repository);
+    }
+
+    @Bean
+    public GetBuildingService getBuildingService(DeviceRepositoryPort repository) {
+        return new GetBuildingService(repository);
+    }
 }

@@ -8,6 +8,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { correlationInterceptor } from './core/interceptors/correlation.interceptor';
 import { tenantInterceptor } from './core/interceptors/tenant.interceptor';
+import { errorInterceptor } from './core/interceptors/error.interceptor';
 
 function initializeKeycloak(keycloak: KeycloakService) {
   return () =>
@@ -32,7 +33,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(
-      withInterceptors([authInterceptor, tenantInterceptor, correlationInterceptor])
+      withInterceptors([authInterceptor, tenantInterceptor, correlationInterceptor, errorInterceptor])
     ),
     provideAnimationsAsync(),
     KeycloakService,
