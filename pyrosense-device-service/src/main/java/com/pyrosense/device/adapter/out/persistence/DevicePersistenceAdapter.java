@@ -4,6 +4,7 @@ import com.pyrosense.device.adapter.out.persistence.mapper.DevicePersistenceMapp
 import com.pyrosense.device.adapter.out.persistence.repository.DeviceJpaRepository;
 import com.pyrosense.device.application.port.out.DeviceRepositoryPort;
 import com.pyrosense.device.domain.model.Device;
+import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.pagination.Page;
@@ -49,6 +50,20 @@ public class DevicePersistenceAdapter implements DeviceRepositoryPort {
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
         var jpaPage = jpaRepository.findByTenantId(tenantId.value(), pageable);
+        var devices = jpaPage.getContent().stream()
+                .map(DevicePersistenceMapper::toDomain)
+                .toList();
+        return Page.of(devices, jpaPage.getNumber(), jpaPage.getSize(), jpaPage.getTotalElements());
+    }
+
+    @Override
+    public Page<Device> findByBuildingId(BuildingId buildingId, TenantId tenantId, PageRequest pageRequest) {
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                pageRequest.page(),
+                pageRequest.size(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        var jpaPage = jpaRepository.findByBuildingIdAndTenantId(buildingId.value(), tenantId.value(), pageable);
         var devices = jpaPage.getContent().stream()
                 .map(DevicePersistenceMapper::toDomain)
                 .toList();

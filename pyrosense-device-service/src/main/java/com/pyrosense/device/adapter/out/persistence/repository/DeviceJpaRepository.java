@@ -14,5 +14,7 @@ public interface DeviceJpaRepository extends JpaRepository<DeviceJpaEntity, UUID
 
     Page<DeviceJpaEntity> findByTenantId(UUID tenantId, Pageable pageable);
 
+    Page<DeviceJpaEntity> findByBuildingIdAndTenantId(UUID buildingId, UUID tenantId, Pageable pageable);
+
     boolean existsBySerialNumber(String serialNumber);
 }

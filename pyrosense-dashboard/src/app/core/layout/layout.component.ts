@@ -34,6 +34,10 @@ import { AuthService } from '../services/auth.service';
             <mat-icon matListItemIcon>dashboard</mat-icon>
             <span matListItemTitle>Dashboard</span>
           </a>
+          <a mat-list-item routerLink="/buildings" routerLinkActive="active">
+            <mat-icon matListItemIcon>apartment</mat-icon>
+            <span matListItemTitle>Batiments</span>
+          </a>
           <a mat-list-item routerLink="/alerts" routerLinkActive="active">
             <mat-icon matListItemIcon>warning</mat-icon>
             <span matListItemTitle>Alertes</span>

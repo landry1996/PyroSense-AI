@@ -1,6 +1,7 @@
 package com.pyrosense.device.application.port.in;
 
 import com.pyrosense.device.domain.model.Device;
+import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.pagination.Page;
@@ -13,4 +14,6 @@ public interface GetDeviceQuery {
     Device getBySerialNumber(String serialNumber);
 
     Page<Device> listByTenant(TenantId tenantId, PageRequest pageRequest);
+
+    Page<Device> findByBuildingId(BuildingId buildingId, TenantId tenantId, PageRequest pageRequest);
 }

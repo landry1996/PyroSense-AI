@@ -149,6 +149,20 @@ public class DeviceController {
         return ResponseEntity.ok(DeviceResponseMapper.toPageResponse(result));
     }
 
+    @GetMapping("/building/{buildingId}")
+    @Operation(summary = "List devices for a building")
+    public ResponseEntity<DevicePageResponse> listByBuilding(
+            @PathVariable String buildingId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        TenantId tenantId = TenantContext.require();
+        int safeSize = Math.min(size, 100);
+        var pageRequest = PageRequest.of(page, safeSize);
+        var result = getDevice.findByBuildingId(
+                BuildingId.from(buildingId), tenantId, pageRequest);
+        return ResponseEntity.ok(DeviceResponseMapper.toPageResponse(result));
+    }
+
     private String extractActor(Jwt jwt) {
         return jwt.getClaimAsString("preferred_username");
     }

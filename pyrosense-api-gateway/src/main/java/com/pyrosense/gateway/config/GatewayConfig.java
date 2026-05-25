@@ -57,6 +57,10 @@ public class GatewayConfig {
                 .route("ingestion", r -> r.path("/api/v1/ingestion/**")
                         .uri(ingestionUrl))
 
+                // Telemetry Query (Ingestion Service)
+                .route("telemetry-query", r -> r.path("/api/v1/telemetry/**")
+                        .uri(ingestionUrl))
+
                 // Signal Analysis Service
                 .route("analysis", r -> r.path("/api/v1/analysis/**")
                         .uri(analysisUrl))

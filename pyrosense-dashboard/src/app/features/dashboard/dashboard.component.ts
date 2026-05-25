@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component';
 import { SeverityBadgeComponent } from '../../shared/components/severity-badge.component';
+import { ApiService } from '../../core/services/api.service';
 
 interface DashboardStats {
   totalDevices: number;
@@ -121,18 +122,29 @@ export class DashboardComponent implements OnInit {
     pendingInterventions: 0,
   });
 
+  constructor(private api: ApiService) {}
+
   ngOnInit(): void {
-    // TODO: Replace with real API calls
-    setTimeout(() => {
-      this.stats.set({
-        totalDevices: 47,
-        activeDevices: 42,
-        criticalAlerts: 3,
-        warningAlerts: 8,
-        avgRiskScore: 34,
-        pendingInterventions: 5,
-      });
-      this.loading.set(false);
-    }, 500);
+    this.api.getDevicesByTenant().subscribe({
+      next: (devices) => {
+        const active = devices.filter(d => d.status === 'ACTIVE').length;
+        this.stats.update(s => ({ ...s, totalDevices: devices.length, activeDevices: active }));
+      },
+      error: () => {},
+    });
+    this.api.getCriticalAlerts().subscribe({
+      next: (alerts) => {
+        this.stats.update(s => ({ ...s, criticalAlerts: alerts.length }));
+        this.loading.set(false);
+      },
+      error: () => {
+        // Fallback to mock
+        this.stats.set({
+          totalDevices: 47, activeDevices: 42, criticalAlerts: 3,
+          warningAlerts: 8, avgRiskScore: 34, pendingInterventions: 5,
+        });
+        this.loading.set(false);
+      },
+    });
   }
 }

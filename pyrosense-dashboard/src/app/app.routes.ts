@@ -12,58 +12,62 @@ export const routes: Routes = [
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/dashboard/dashboard.component').then(
-        (m) => m.DashboardComponent
-      ),
+      import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
   },
   {
-    path: 'alerts',
+    path: 'buildings',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/alerts/alert-list.component').then(
-        (m) => m.AlertListComponent
-      ),
+      import('./features/buildings/building-list.component').then(m => m.BuildingListComponent),
   },
   {
-    path: 'alerts/:id',
+    path: 'buildings/:id',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/alerts/alert-detail.component').then(
-        (m) => m.AlertDetailComponent
-      ),
+      import('./features/buildings/building-detail.component').then(m => m.BuildingDetailComponent),
   },
   {
     path: 'devices',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/devices/device-list.component').then(
-        (m) => m.DeviceListComponent
-      ),
+      import('./features/devices/device-list.component').then(m => m.DeviceListComponent),
+  },
+  {
+    path: 'devices/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/devices/device-detail.component').then(m => m.DeviceDetailComponent),
+  },
+  {
+    path: 'alerts',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/alerts/alert-list.component').then(m => m.AlertListComponent),
+  },
+  {
+    path: 'alerts/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/alerts/alert-detail.component').then(m => m.AlertDetailComponent),
   },
   {
     path: 'interventions',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/interventions/intervention-list.component').then(
-        (m) => m.InterventionListComponent
-      ),
+      import('./features/interventions/intervention-list.component').then(m => m.InterventionListComponent),
   },
   {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/reports/report-list.component').then(
-        (m) => m.ReportListComponent
-      ),
+      import('./features/reports/report-list.component').then(m => m.ReportListComponent),
   },
   {
     path: 'admin',
     canActivate: [authGuard, roleGuard],
     data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN'] },
     loadComponent: () =>
-      import('./features/admin/admin.component').then(
-        (m) => m.AdminComponent
-      ),
+      import('./features/admin/admin.component').then(m => m.AdminComponent),
   },
   {
     path: '**',
