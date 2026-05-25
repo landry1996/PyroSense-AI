@@ -7,6 +7,7 @@ import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.ElectricalPanelId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.pagination.PageRequest;
+import com.pyrosense.shared.security.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -114,14 +115,22 @@ public class DeviceController {
     @GetMapping("/{deviceId}")
     @Operation(summary = "Get device by ID")
     public ResponseEntity<DeviceResponse> getById(@PathVariable UUID deviceId) {
+        TenantId currentTenant = TenantContext.require();
         var device = getDevice.getById(DeviceId.from(deviceId.toString()));
+        if (device.getTenantId() != null && !device.getTenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(DeviceResponseMapper.toResponse(device));
     }
 
     @GetMapping("/serial/{serialNumber}")
     @Operation(summary = "Get device by serial number")
     public ResponseEntity<DeviceResponse> getBySerialNumber(@PathVariable String serialNumber) {
+        TenantId currentTenant = TenantContext.require();
         var device = getDevice.getBySerialNumber(serialNumber);
+        if (device.getTenantId() != null && !device.getTenantId().equals(currentTenant)) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(DeviceResponseMapper.toResponse(device));
     }
 
@@ -131,8 +140,12 @@ public class DeviceController {
             @PathVariable UUID tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        TenantId currentTenant = TenantContext.require();
+        if (!currentTenant.equals(TenantId.from(tenantId.toString()))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         var pageRequest = PageRequest.of(page, size);
-        var result = getDevice.listByTenant(TenantId.from(tenantId.toString()), pageRequest);
+        var result = getDevice.listByTenant(currentTenant, pageRequest);
         return ResponseEntity.ok(DeviceResponseMapper.toPageResponse(result));
     }
 

@@ -15,15 +15,23 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Component
 public class HttpDeviceAuthorizationAdapter implements DeviceAuthorizationPort {
 
     private static final Logger log = LoggerFactory.getLogger(HttpDeviceAuthorizationAdapter.class);
+    private static final long CACHE_TTL_MS = 30_000; // 30 seconds
 
+    private final ConcurrentHashMap<String, CacheEntry> authCache = new ConcurrentHashMap<>();
     private final RestClient restClient;
     private final Counter deviceServiceTimeoutCounter;
     private final Counter deviceServiceErrorCounter;
+
+    private record CacheEntry(boolean value, long expiresAt) {
+        boolean isExpired() { return System.currentTimeMillis() > expiresAt; }
+    }
 
     public HttpDeviceAuthorizationAdapter(
             @Value("${pyrosense.device-service.url:http://localhost:8082}") String deviceServiceUrl,
@@ -47,6 +55,27 @@ public class HttpDeviceAuthorizationAdapter implements DeviceAuthorizationPort {
 
     @Override
     public boolean isDeviceActive(DeviceId deviceId) {
+        String cacheKey = "active:" + deviceId.value();
+        return cachedCheck(cacheKey, () -> fetchDeviceActive(deviceId));
+    }
+
+    @Override
+    public boolean isDeviceOwnedByTenant(DeviceId deviceId, TenantId tenantId) {
+        String cacheKey = "ownership:" + deviceId.value() + ":" + tenantId.toString();
+        return cachedCheck(cacheKey, () -> fetchDeviceOwnedByTenant(deviceId, tenantId));
+    }
+
+    private boolean cachedCheck(String cacheKey, Supplier<Boolean> httpCall) {
+        CacheEntry entry = authCache.get(cacheKey);
+        if (entry != null && !entry.isExpired()) {
+            return entry.value();
+        }
+        boolean result = httpCall.get();
+        authCache.put(cacheKey, new CacheEntry(result, System.currentTimeMillis() + CACHE_TTL_MS));
+        return result;
+    }
+
+    private boolean fetchDeviceActive(DeviceId deviceId) {
         try {
             var response = restClient.get()
                     .uri("/api/v1/devices/{deviceId}", deviceId.value())
@@ -68,8 +97,7 @@ public class HttpDeviceAuthorizationAdapter implements DeviceAuthorizationPort {
         }
     }
 
-    @Override
-    public boolean isDeviceOwnedByTenant(DeviceId deviceId, TenantId tenantId) {
+    private boolean fetchDeviceOwnedByTenant(DeviceId deviceId, TenantId tenantId) {
         try {
             var response = restClient.get()
                     .uri("/api/v1/devices/{deviceId}", deviceId.value())

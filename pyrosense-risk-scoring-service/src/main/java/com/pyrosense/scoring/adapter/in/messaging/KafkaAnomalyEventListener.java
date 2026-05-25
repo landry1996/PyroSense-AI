@@ -37,9 +37,9 @@ public class KafkaAnomalyEventListener {
                                       MeterRegistry registry) {
         this.calculateRiskUseCase = calculateRiskUseCase;
         this.objectMapper = objectMapper;
-        this.eventsReceived = Counter.builder("scoring.events.received").register(registry);
-        this.eventsProcessed = Counter.builder("scoring.events.processed").register(registry);
-        this.scoringTimer = Timer.builder("scoring.calculation.duration").register(registry);
+        this.eventsReceived = Counter.builder("pyrosense.scoring.events.received").register(registry);
+        this.eventsProcessed = Counter.builder("pyrosense.risk.score.updated").register(registry);
+        this.scoringTimer = Timer.builder("pyrosense.scoring.calculation.duration").register(registry);
     }
 
     @KafkaListener(topics = "${pyrosense.scoring.kafka.topic:analysis-events}",

@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+// Security: Device authentication is handled at the use-case level via DeviceAuthorizationPort
+// The endpoint is intentionally open at controller level for device-to-platform communication
 @RestController
 @RequestMapping("/api/v1/ingestion")
 public class IngestionController {
@@ -39,16 +41,16 @@ public class IngestionController {
         this.ingestTelemetry = ingestTelemetry;
         this.ingestHeartbeat = ingestHeartbeat;
         this.objectMapper = objectMapper;
-        this.receivedCounter = Counter.builder("ingestion_received_total")
+        this.receivedCounter = Counter.builder("pyrosense.telemetry.received")
                 .description("Total telemetry messages received")
                 .register(meterRegistry);
-        this.rejectedCounter = Counter.builder("ingestion_rejected_total")
+        this.rejectedCounter = Counter.builder("pyrosense.telemetry.rejected")
                 .description("Total telemetry messages rejected")
                 .register(meterRegistry);
-        this.heartbeatCounter = Counter.builder("device_heartbeat_total")
+        this.heartbeatCounter = Counter.builder("pyrosense.device.heartbeat")
                 .description("Total heartbeat messages received")
                 .register(meterRegistry);
-        this.latencyTimer = Timer.builder("ingestion_latency_ms")
+        this.latencyTimer = Timer.builder("pyrosense.telemetry.processing.duration")
                 .description("Telemetry ingestion latency")
                 .register(meterRegistry);
     }

@@ -7,6 +7,8 @@ import com.pyrosense.shared.id.AlertId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -21,6 +23,8 @@ import java.util.UUID;
 
 @Repository
 public class JdbcInterventionRepository implements InterventionRepositoryPort {
+
+    private static final Logger log = LoggerFactory.getLogger(JdbcInterventionRepository.class);
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
@@ -149,6 +153,7 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
         try {
             return objectMapper.writeValueAsString(diagnostic);
         } catch (Exception e) {
+            log.warn("Failed to deserialize JSON field for intervention: {}", e.getMessage());
             return null;
         }
     }
@@ -158,6 +163,7 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
         try {
             return objectMapper.writeValueAsString(riskImpact);
         } catch (Exception e) {
+            log.warn("Failed to deserialize JSON field for intervention: {}", e.getMessage());
             return null;
         }
     }
@@ -212,7 +218,9 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
                     try {
                         RiskImpact impact = objectMapper.readValue(riskJson, RiskImpact.class);
                         intervention.recordRiskImpact(impact);
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        log.warn("Failed to deserialize JSON field for intervention: {}", e.getMessage());
+                    }
                 }
             }
 
@@ -225,7 +233,9 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
                 try {
                     FieldDiagnostic diag = objectMapper.readValue(diagJson, FieldDiagnostic.class);
                     intervention.addDiagnostic(diag);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize JSON field for intervention: {}", e.getMessage());
+                }
             }
         }
     }

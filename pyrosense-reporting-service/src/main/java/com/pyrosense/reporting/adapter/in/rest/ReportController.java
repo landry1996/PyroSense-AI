@@ -80,21 +80,34 @@ public class ReportController {
     @GetMapping
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY')")
     public ResponseEntity<List<ReportResponse>> list(
-            @RequestParam String tenantId,
-            @RequestParam(required = false) String type) {
-        TenantId tid = new TenantId(UUID.fromString(tenantId));
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId tid = TenantContext.require();
         List<Report> reports = (type != null)
                 ? queryUseCase.findByTenantAndType(tid, ReportType.valueOf(type))
                 : queryUseCase.findByTenant(tid);
-        return ResponseEntity.ok(reports.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(reports.stream()
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/building/{buildingId}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'INSURER', 'OCCUPANT', 'SUPPORT_READONLY')")
-    public ResponseEntity<List<ReportResponse>> listByBuilding(@PathVariable String buildingId) {
+    public ResponseEntity<List<ReportResponse>> listByBuilding(
+            @PathVariable String buildingId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
         List<Report> reports = queryUseCase.findByBuilding(new BuildingId(UUID.fromString(buildingId)));
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
         return ResponseEntity.ok(reports.stream()
                 .filter(this::canAccess)
+                .skip(offset).limit(safeSize)
                 .map(this::toResponse)
                 .toList());
     }

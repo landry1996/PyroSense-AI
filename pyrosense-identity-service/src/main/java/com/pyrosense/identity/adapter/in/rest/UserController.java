@@ -55,9 +55,15 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'SUPPORT_READONLY')")
-    public ResponseEntity<List<UserResponse>> listByTenant(@RequestParam String tenantId) {
+    public ResponseEntity<List<UserResponse>> listByTenant(
+            @RequestParam String tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
         List<UserResponse> users = userRepository.findByTenantId(new TenantId(UUID.fromString(tenantId)))
-                .stream().map(this::toResponse).toList();
+                .stream().skip(offset).limit(safeSize).map(this::toResponse).toList();
         return ResponseEntity.ok(users);
     }
 

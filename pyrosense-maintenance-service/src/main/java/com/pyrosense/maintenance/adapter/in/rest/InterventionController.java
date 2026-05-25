@@ -10,6 +10,7 @@ import com.pyrosense.shared.id.AlertId;
 import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import com.pyrosense.shared.security.TenantContext;
 import com.pyrosense.shared.util.ClockProvider;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -118,7 +119,9 @@ public class InterventionController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
     public ResponseEntity<InterventionResponse> getById(@PathVariable UUID id) {
+        TenantId currentTenant = TenantContext.require();
         return queryUseCase.findById(id)
+                .filter(intervention -> intervention.getTenantId().equals(currentTenant))
                 .map(this::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -126,34 +129,61 @@ public class InterventionController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
-    public ResponseEntity<List<InterventionResponse>> list(@RequestParam String tenantId,
-                                                           @RequestParam(required = false) String status) {
-        TenantId tid = new TenantId(UUID.fromString(tenantId));
+    public ResponseEntity<List<InterventionResponse>> list(@RequestParam(required = false) String status,
+                                                           @RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId tid = TenantContext.require();
         List<Intervention> interventions = (status != null)
                 ? queryUseCase.findByTenantAndStatus(tid, InterventionStatus.valueOf(status))
                 : queryUseCase.findByTenant(tid);
-        return ResponseEntity.ok(interventions.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(interventions.stream()
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/electrician/{electricianId}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
-    public ResponseEntity<List<InterventionResponse>> listByElectrician(@PathVariable String electricianId) {
+    public ResponseEntity<List<InterventionResponse>> listByElectrician(
+            @PathVariable String electricianId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId currentTenant = TenantContext.require();
         List<Intervention> interventions = queryUseCase.findByElectrician(
                 new UserId(UUID.fromString(electricianId)));
-        return ResponseEntity.ok(interventions.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(interventions.stream()
+                .filter(i -> i.getTenantId().equals(currentTenant))
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/device/{deviceId}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
-    public ResponseEntity<List<InterventionResponse>> listByDevice(@PathVariable String deviceId) {
+    public ResponseEntity<List<InterventionResponse>> listByDevice(
+            @PathVariable String deviceId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId currentTenant = TenantContext.require();
         List<Intervention> interventions = queryUseCase.findByDevice(new DeviceId(UUID.fromString(deviceId)));
-        return ResponseEntity.ok(interventions.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(interventions.stream()
+                .filter(i -> i.getTenantId().equals(currentTenant))
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/statistics")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY')")
-    public ResponseEntity<InterventionStatistics> statistics(@RequestParam String tenantId) {
-        return ResponseEntity.ok(queryUseCase.getStatistics(new TenantId(UUID.fromString(tenantId))));
+    public ResponseEntity<InterventionStatistics> statistics() {
+        TenantId currentTenant = TenantContext.require();
+        return ResponseEntity.ok(queryUseCase.getStatistics(currentTenant));
     }
 
     private InterventionResponse toResponse(Intervention i) {

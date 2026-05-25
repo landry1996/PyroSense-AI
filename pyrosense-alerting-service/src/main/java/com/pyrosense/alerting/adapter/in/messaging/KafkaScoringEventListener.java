@@ -33,8 +33,8 @@ public class KafkaScoringEventListener {
                                       MeterRegistry registry) {
         this.createAlertUseCase = createAlertUseCase;
         this.objectMapper = objectMapper;
-        this.eventsReceived = Counter.builder("alerting.events.received").register(registry);
-        this.alertsCreated = Counter.builder("alerting.alerts.created").register(registry);
+        this.eventsReceived = Counter.builder("pyrosense.alerting.events.received").register(registry);
+        this.alertsCreated = Counter.builder("pyrosense.alerts.created").register(registry);
     }
 
     @KafkaListener(topics = "${pyrosense.alerting.kafka.scoring-topic:scoring-events}",

@@ -5,6 +5,7 @@ import com.pyrosense.notification.domain.model.Notification;
 import com.pyrosense.notification.domain.model.NotificationStatus;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import com.pyrosense.shared.security.TenantContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -35,9 +36,12 @@ public class NotificationController {
     @GetMapping
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY')")
     public ResponseEntity<List<NotificationResponse>> list(
-            @RequestParam String tenantId,
-            @RequestParam(required = false) String status) {
-        TenantId tid = new TenantId(UUID.fromString(tenantId));
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId tid = TenantContext.require();
         List<Notification> notifications;
         if (status != null) {
             notifications = queryUseCase.findByStatus(NotificationStatus.valueOf(status)).stream()
@@ -46,21 +50,34 @@ public class NotificationController {
         } else {
             notifications = queryUseCase.findByTenant(tid);
         }
-        return ResponseEntity.ok(notifications.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(notifications.stream()
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/recipient/{recipientId}")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OCCUPANT')")
-    public ResponseEntity<List<NotificationResponse>> listByRecipient(@PathVariable String recipientId) {
+    public ResponseEntity<List<NotificationResponse>> listByRecipient(
+            @PathVariable String recipientId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        int safeSize = Math.min(size, 200);
+        int offset = page * safeSize;
+        TenantId currentTenant = TenantContext.require();
         List<Notification> notifications = queryUseCase.findByRecipient(
                 new UserId(UUID.fromString(recipientId)));
-        return ResponseEntity.ok(notifications.stream().map(this::toResponse).toList());
+        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+        return ResponseEntity.ok(notifications.stream()
+                .filter(n -> n.getTenantId().equals(currentTenant))
+                .skip(offset).limit(safeSize)
+                .map(this::toResponse).toList());
     }
 
     @GetMapping("/statistics")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY')")
-    public ResponseEntity<StatisticsResponse> statistics(@RequestParam String tenantId) {
-        TenantId tid = new TenantId(UUID.fromString(tenantId));
+    public ResponseEntity<StatisticsResponse> statistics() {
+        TenantId tid = TenantContext.require();
         long sent = queryUseCase.countByTenantAndStatus(tid, NotificationStatus.SENT);
         long failed = queryUseCase.countByTenantAndStatus(tid, NotificationStatus.FAILED);
         long pending = queryUseCase.countByTenantAndStatus(tid, NotificationStatus.PENDING);

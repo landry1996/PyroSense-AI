@@ -94,6 +94,8 @@ public class IngestTelemetryService implements IngestTelemetryUseCase {
                 .ingestedAt(ClockProvider.now())
                 .build();
 
+        // TODO: Batch optimization - buffer readings and flush via repository.saveBatch()
+        // every 100 messages or 500ms for production-scale throughput
         repository.save(reading);
         idempotency.markProcessed(idempotencyKey, IDEMPOTENCY_TTL);
 

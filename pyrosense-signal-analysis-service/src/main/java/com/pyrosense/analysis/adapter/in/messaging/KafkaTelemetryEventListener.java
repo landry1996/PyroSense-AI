@@ -36,6 +36,7 @@ public class KafkaTelemetryEventListener {
     private final Counter eventsReceived;
     private final Counter eventsProcessed;
     private final Counter eventsFailed;
+    private final Counter anomaliesDetected;
     private final Timer analysisTimer;
 
     public KafkaTelemetryEventListener(AnalyzeSignalUseCase analyzeSignalUseCase,
@@ -45,10 +46,11 @@ public class KafkaTelemetryEventListener {
         this.analyzeSignalUseCase = analyzeSignalUseCase;
         this.buildBaselineUseCase = buildBaselineUseCase;
         this.objectMapper = objectMapper;
-        this.eventsReceived = Counter.builder("analysis.events.received").register(registry);
-        this.eventsProcessed = Counter.builder("analysis.events.processed").register(registry);
-        this.eventsFailed = Counter.builder("analysis.events.failed").register(registry);
-        this.analysisTimer = Timer.builder("analysis.processing.duration").register(registry);
+        this.eventsReceived = Counter.builder("pyrosense.analysis.events.received").register(registry);
+        this.eventsProcessed = Counter.builder("pyrosense.analysis.events.processed").register(registry);
+        this.eventsFailed = Counter.builder("pyrosense.analysis.events.failed").register(registry);
+        this.anomaliesDetected = Counter.builder("pyrosense.anomalies.detected").register(registry);
+        this.analysisTimer = Timer.builder("pyrosense.analysis.processing.duration").register(registry);
     }
 
     @KafkaListener(topics = "${pyrosense.analysis.kafka.topic:telemetry-events}",
@@ -68,9 +70,12 @@ public class KafkaTelemetryEventListener {
                 buildBaselineUseCase.buildOrUpdate(
                         new BuildBaselineCommand(window.deviceId(), window));
 
-                analyzeSignalUseCase.analyze(new AnalyzeTelemetryWindowCommand(window));
+                var result = analyzeSignalUseCase.analyze(new AnalyzeTelemetryWindowCommand(window));
 
                 eventsProcessed.increment();
+                if (result != null && result.hasAnomalies()) {
+                    anomaliesDetected.increment(result.anomalyCount());
+                }
             } catch (Exception e) {
                 eventsFailed.increment();
                 log.error("Failed to process telemetry event: {}", e.getMessage(), e);

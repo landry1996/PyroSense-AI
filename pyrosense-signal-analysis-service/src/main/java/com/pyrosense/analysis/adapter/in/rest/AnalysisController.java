@@ -6,6 +6,7 @@ import com.pyrosense.analysis.domain.model.BaselineProfile;
 import com.pyrosense.analysis.domain.model.SignalAnomaly;
 import com.pyrosense.shared.id.DeviceId;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/analysis")
+@PreAuthorize("hasAnyRole('TENANT_ADMIN','PROPERTY_MANAGER','ELECTRICIAN','OPERATOR')")
 public class AnalysisController {
 
     private final AnomalyRepositoryPort anomalyRepository;

@@ -5,6 +5,8 @@ import com.pyrosense.reporting.application.port.out.ReportRepositoryPort;
 import com.pyrosense.reporting.domain.model.*;
 import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.TenantId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -19,6 +21,8 @@ import java.util.UUID;
 
 @Repository
 public class JdbcReportRepository implements ReportRepositoryPort {
+
+    private static final Logger log = LoggerFactory.getLogger(JdbcReportRepository.class);
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
@@ -102,6 +106,7 @@ public class JdbcReportRepository implements ReportRepositoryPort {
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
+            log.warn("Failed to serialize/deserialize report metadata: {}", e.getMessage());
             return null;
         }
     }
@@ -144,6 +149,7 @@ public class JdbcReportRepository implements ReportRepositoryPort {
             try {
                 return objectMapper.readValue(json, ReportMetadata.class);
             } catch (Exception e) {
+                log.warn("Failed to serialize/deserialize report metadata: {}", e.getMessage());
                 return null;
             }
         }
