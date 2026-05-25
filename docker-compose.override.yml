@@ -1,0 +1,96 @@
+# ============================================================
+# PyroSense - Docker Compose Override (Development Enhancements)
+# ============================================================
+# This file is automatically loaded by docker compose.
+# It adds development-friendly settings on top of docker-compose.yml.
+#
+# To skip: docker compose -f docker-compose.yml up
+# ============================================================
+
+services:
+
+  # Expose Kafka externally for local IDE debugging
+  kafka:
+    ports:
+      - "9092:29092"
+
+  # Add debug ports for services (JDWP remote debugging)
+  identity-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8081:8081"
+      - "5011:5005"
+    profiles: ["services", "full"]
+
+  device-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8082:8082"
+      - "5012:5005"
+    profiles: ["services", "full"]
+
+  ingestion-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8083:8083"
+      - "5013:5005"
+    profiles: ["services", "full"]
+
+  analysis-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8084:8084"
+      - "5014:5005"
+    profiles: ["services", "full"]
+
+  scoring-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8085:8085"
+      - "5015:5005"
+    profiles: ["services", "full"]
+
+  alerting-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8086:8086"
+      - "5016:5005"
+    profiles: ["services", "full"]
+
+  notification-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8087:8087"
+      - "5017:5005"
+    profiles: ["services", "full"]
+
+  reporting-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8091:8091"
+      - "5018:5005"
+    profiles: ["services", "full"]
+
+  maintenance-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8089:8089"
+      - "5019:5005"
+    profiles: ["services", "full"]
+
+  api-gateway:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8080:8080"
+      - "5010:5005"
+    profiles: ["services", "full"]

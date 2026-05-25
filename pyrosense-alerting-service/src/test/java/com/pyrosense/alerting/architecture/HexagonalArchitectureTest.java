@@ -120,4 +120,18 @@ class HexagonalArchitectureTest {
                 .should().beAnnotatedWith(org.springframework.stereotype.Service.class)
                 .check(classes);
     }
+
+    @Test
+    void noFieldInjectionInApplicationLayer() {
+        noFields().that().areDeclaredInClassesThat().resideInAPackage("..application..")
+                .should().beAnnotatedWith(org.springframework.beans.factory.annotation.Autowired.class)
+                .check(classes);
+    }
+
+    @Test
+    void adaptersShouldNotDependOnDomain() {
+        noClasses().that().resideInAPackage("..adapter..")
+                .should().dependOnClassesThat().resideInAPackage("..application.usecase..")
+                .check(classes);
+    }
 }

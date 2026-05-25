@@ -1,0 +1,82 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "title": "Alerts Created by Severity",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_alerts_created_total[5m])",
+          "legendFormat": "{{severity}}"
+        }
+      ]
+    },
+    {
+      "title": "Active Critical Alerts",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_alerts_critical_active",
+          "legendFormat": "Critical Active"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 1, "color": "yellow" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Notifications by Channel",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_notifications_sent_total[5m])",
+          "legendFormat": "Sent ({{channel}})"
+        }
+      ]
+    },
+    {
+      "title": "Notification Failures",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_notifications_failed_total[5m])",
+          "legendFormat": "Failed ({{channel}})"
+        },
+        {
+          "expr": "pyrosense_notifications_retrying",
+          "legendFormat": "Retrying"
+        }
+      ]
+    },
+    {
+      "title": "Alert Lifecycle",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "pyrosense_alerts_by_status",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["pyrosense", "alerting", "notifications"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "PyroSense Alerting & Notifications",
+  "uid": "pyrosense-alerting"
+}

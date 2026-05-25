@@ -1,13 +1,62 @@
+# ============================================================
+# PyroSense AI Platform - Docker Compose (Local Development)
+# ============================================================
+# WARNING: This configuration is for LOCAL DEVELOPMENT ONLY.
+# Do NOT use in production without hardening secrets,
+# network policies, and resource limits.
+# ============================================================
+#
+# Usage:
+#   ./scripts/start-local.sh          (recommended)
+#   docker compose --env-file .env.docker up -d
+#
+# Profiles:
+#   default   = infrastructure only (DB, Kafka, Redis, MQTT, observability)
+#   services  = all Spring Boot microservices
+#   simulator = IoT simulator
+#   full      = everything
+#
+# ============================================================
+
+x-spring-common: &spring-common
+  restart: unless-stopped
+  networks:
+    - pyrosense-net
+  env_file:
+    - .env.docker
+  environment:
+    SPRING_PROFILES_ACTIVE: docker
+    DB_USERNAME: ${DB_USERNAME:-pyrosense}
+    DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    TRACING_SAMPLING: ${TRACING_SAMPLING:-1.0}
+    JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -XX:+UseZGC}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    kafka:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 services:
 
-  # === Infrastructure ===
+  # ============================================================
+  # INFRASTRUCTURE
+  # ============================================================
 
   postgres:
     image: timescale/timescaledb:latest-pg16
     container_name: pyrosense-postgres
+    networks:
+      - pyrosense-net
     environment:
-      POSTGRES_USER: pyrosense
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pyrosense}
+      POSTGRES_USER: ${DB_USERNAME:-pyrosense}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
       POSTGRES_MULTIPLE_DATABASES: pyrosense_identity,pyrosense_device,pyrosense_ingestion,pyrosense_analysis,pyrosense_scoring,pyrosense_alerting,pyrosense_reporting,pyrosense_notification,pyrosense_maintenance
     ports:
       - "5432:5432"
@@ -15,108 +64,524 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pyrosense"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-pyrosense}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
     container_name: pyrosense-redis
+    networks:
+      - pyrosense-net
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
+      start_period: 10s
 
   kafka:
     image: apache/kafka:3.8.0
     container_name: pyrosense-kafka
+    networks:
+      - pyrosense-net
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: pyrosense-kafka-cluster-001
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 6
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 24
     ports:
-      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 15s
       timeout: 10s
       retries: 5
+      start_period: 30s
 
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: pyrosense-mosquitto
+    networks:
+      - pyrosense-net
     ports:
       - "1883:1883"
       - "9001:9001"
     volumes:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
       interval: 15s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: pyrosense-keycloak
+    networks:
+      - pyrosense-net
     command: start-dev
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/pyrosense_identity
-      KC_DB_USERNAME: pyrosense
-      KC_DB_PASSWORD: ${DB_PASSWORD:-pyrosense}
+      KC_DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      KC_DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
       KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_local_dev}
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "8180:8080"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-  # === Observability ===
+  # ============================================================
+  # OBSERVABILITY
+  # ============================================================
 
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: pyrosense-prometheus
+    networks:
+      - pyrosense-net
     ports:
       - "9090:9090"
     volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./infra/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   grafana:
     image: grafana/grafana:10.4.0
     container_name: pyrosense-grafana
+    networks:
+      - pyrosense-net
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin_local_dev}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
-      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/provisioning/dashboards/json:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   loki:
     image: grafana/loki:2.9.4
     container_name: pyrosense-loki
+    networks:
+      - pyrosense-net
     ports:
       - "3100:3100"
     volumes:
-      - ./infra/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - ./infra/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: pyrosense-otel-collector
+    networks:
+      - pyrosense-net
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./infra/otel/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:13133/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================
+  # APPLICATION SERVICES (profile: services)
+  # ============================================================
+
+  identity-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-identity-service/Dockerfile
+    container_name: pyrosense-identity-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_identity
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  device-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-device-service/Dockerfile
+    container_name: pyrosense-device-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_device
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  ingestion-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-ingestion-service/Dockerfile
+    container_name: pyrosense-ingestion-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_ingestion
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      MQTT_BROKER_URL: tcp://mosquitto:1883
+      MQTT_ENABLED: "true"
+      DEVICE_SERVICE_URL: http://device-service:8082
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  analysis-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-signal-analysis-service/Dockerfile
+    container_name: pyrosense-analysis-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_analysis
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8084:8084"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  scoring-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-risk-scoring-service/Dockerfile
+    container_name: pyrosense-scoring-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_scoring
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  alerting-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-alerting-service/Dockerfile
+    container_name: pyrosense-alerting-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_alerting
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  notification-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-notification-service/Dockerfile
+    container_name: pyrosense-notification-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_notification
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8087:8087"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  reporting-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-reporting-service/Dockerfile
+    container_name: pyrosense-reporting-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_reporting
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8091:8091"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8091/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  maintenance-service:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-maintenance-service/Dockerfile
+    container_name: pyrosense-maintenance-service
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pyrosense_maintenance
+      DB_USERNAME: ${DB_USERNAME:-pyrosense}
+      DB_PASSWORD: ${DB_PASSWORD:-pyrosense_local_dev}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8089:8089"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8089/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  api-gateway:
+    <<: *spring-common
+    build:
+      context: .
+      dockerfile: pyrosense-api-gateway/Dockerfile
+    container_name: pyrosense-api-gateway
+    profiles: ["services", "full"]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      REDIS_HOST: redis
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/pyrosense
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      DEVICE_SERVICE_URL: http://device-service:8082
+      INGESTION_SERVICE_URL: http://ingestion-service:8083
+      ANALYSIS_SERVICE_URL: http://analysis-service:8084
+      SCORING_SERVICE_URL: http://scoring-service:8085
+      ALERTING_SERVICE_URL: http://alerting-service:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      REPORTING_SERVICE_URL: http://reporting-service:8091
+      MAINTENANCE_SERVICE_URL: http://maintenance-service:8089
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================================
+  # IOT SIMULATOR (profile: simulator)
+  # ============================================================
+
+  iot-simulator:
+    build:
+      context: ./tools/pyrosense-iot-simulator
+      dockerfile: Dockerfile
+    container_name: pyrosense-iot-simulator
+    profiles: ["simulator", "full"]
+    networks:
+      - pyrosense-net
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+    command: ["--mqtt-host", "mosquitto", "--mqtt-port", "1883", "--tenants", "2", "--buildings", "2", "--devices", "3", "--interval", "5000"]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ============================================================
+# NETWORKS
+# ============================================================
+
+networks:
+  pyrosense-net:
+    name: pyrosense-network
+    driver: bridge
+
+# ============================================================
+# VOLUMES (persistent)
+# ============================================================
 
 volumes:
   pgdata:
+    name: pyrosense-pgdata
+  redis_data:
+    name: pyrosense-redis-data
+  kafka_data:
+    name: pyrosense-kafka-data
   mosquitto_data:
+    name: pyrosense-mosquitto-data
+  mosquitto_log:
+    name: pyrosense-mosquitto-log
+  prometheus_data:
+    name: pyrosense-prometheus-data
   grafana_data:
+    name: pyrosense-grafana-data
+  loki_data:
+    name: pyrosense-loki-data

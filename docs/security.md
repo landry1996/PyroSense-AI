@@ -1,361 +1,256 @@
 # PyroSense AI Platform - Security Architecture
 
-## 1. Authentication & Authorization
+## 1. Threat Model (STRIDE)
 
-### Identity Provider
-- **Keycloak** (self-hosted, OIDC-compliant, RS256)
+### S - Spoofing
+
+| Threat | Mitigation |
+|--------|------------|
+| User identity spoofing | JWT authentication via Keycloak (RS256 signature verification). Short-lived tokens (1 hour). Refresh token rotation. |
+| Device impersonation | HMAC-SHA256 device tokens. Per-device secrets with hash-only storage. Automatic rotation. |
+| Tenant spoofing via headers | Gateway strips `X-Tenant-Id`, `X-User-Id`, `X-Roles` from all incoming requests. Tenant derived exclusively from JWT claims. |
+| Service impersonation | Internal network only (no auth between services currently). Future: mTLS between all services. |
+
+### T - Tampering
+
+| Threat | Mitigation |
+|--------|------------|
+| Modified sensor readings | HMAC-SHA256 payload integrity. `X-Signature` header = HMAC(device_secret, timestamp + "." + body). Replay window: 5 minutes. |
+| API parameter manipulation | Jakarta Bean Validation on all DTOs. Mass-assignment protection via Java records (immutable). |
+| Token modification | RS256 signature verification via Keycloak JWKS endpoint. |
+| Data in transit | TLS 1.3 enforced in production on all channels. |
+
+### R - Repudiation
+
+| Threat | Mitigation |
+|--------|------------|
+| Denial of user actions | AOP-based audit logging (`@Audited` annotation): captures userId, tenantId, action, resourceType, resourceId, IP, user-agent, timestamp. |
+| Denial of data submission | Immutable ingestion log with device_id + timestamp + HMAC stored in append-only table. |
+| Denial of admin operations | All mutations logged with SecurityContext userId. Kafka event trail for all domain events. |
+
+### I - Information Disclosure
+
+| Threat | Mitigation |
+|--------|------------|
+| PII in logs | No PII logged. Structured logging filters redact `Authorization` headers. Error responses return code + message only (no stack traces). |
+| Credential leakage | All secrets via environment variables. `application-secret.yml` in `.gitignore`. No secrets in source code. |
+| Cross-tenant data leak | `TenantContext` ThreadLocal enforcement. All repository queries filtered by tenant_id (enforced by ArchUnit tests). |
+| Credential masking | All sensitive values masked in log outputs and actuator endpoints. |
+
+### D - Denial of Service
+
+| Threat | Mitigation |
+|--------|------------|
+| API request flooding | Redis-based rate limiting: 60 req/min (default), 10 req/min (auth), 120 req/min (device ingestion). |
+| Large payload attacks | Payload size limit: 1 MB at gateway level, 8 KB at ingestion service. |
+| Cascade failures | Circuit breaker pattern (Resilience4j) on all inter-service calls. |
+| Resource exhaustion | Connection pooling (HikariCP max 10), thread pool limits, request timeouts. |
+
+### E - Elevation of Privilege
+
+| Threat | Mitigation |
+|--------|------------|
+| Self-escalation | Role assignment restricted to SUPER_ADMIN/ADMIN only. |
+| Cross-tenant access | JWT `tenant_id` claim is authoritative. Never derived from request parameters or headers. |
+| Unauthorized endpoint access | RBAC with 8 roles and 34 permissions. Method-level `@PreAuthorize` on all service operations. |
+| Device accessing user data | DEVICE_MANAGER role scoped to device-related permissions only. |
+
+---
+
+## 2. Authentication
+
+### Users: OAuth2/OIDC via Keycloak (RS256 JWT)
+
+- Identity Provider: Keycloak (self-hosted, OIDC-compliant)
 - Realm: `pyrosense`
 - Client: `pyrosense-platform`
-- Token format: JWT with custom claims (`tenant_id`, `roles`, `permissions`, `device_id`, `scope`)
+- Token signing: RS256 (asymmetric)
+- Access token lifetime: 1 hour
+- Refresh token rotation enabled
+- Account lockout: 5 failed attempts, 30-minute auto-unlock
 
-### JWT Claims Structure
+### Devices: HMAC-SHA256 Tokens
+
+- 32-byte cryptographically random token generated at provisioning
+- Only SHA-256 hash stored in database (plaintext never persisted)
+- Token validated by hashing incoming token and comparing against stored hash
+- Constant-time comparison to prevent timing attacks
+- Auto-expiry configurable (default 90 days)
+
+### Service-to-Service
+
+- Current: Internal network only, no authentication between services
+- Services communicate via HTTP on private network and Kafka events
+- Future: mTLS between all services using service mesh (Istio)
+
+---
+
+## 3. Authorization (RBAC)
+
+### Role Definitions
+
+| Role | Description | Scope |
+|------|-------------|-------|
+| `SUPER_ADMIN` | Full platform control, cross-tenant access | Platform-wide |
+| `ADMIN` | Tenant-level administration | Single tenant |
+| `PROPERTY_MANAGER` | Manages buildings, devices, and alerts | Single tenant |
+| `ELECTRICIAN` | Alert resolution and maintenance tasks | Single tenant |
+| `BUILDING_OWNER` | Read-only access to property data and risk reports | Single tenant |
+| `INSURER` | Risk data access and export capabilities | Single tenant |
+| `DEVICE_MANAGER` | Device provisioning and management | Single tenant |
+| `VIEWER` | Read-only dashboards and reports | Single tenant |
+
+### Key Permissions by Role
+
+| Permission | SUPER_ADMIN | ADMIN | PROPERTY_MANAGER | ELECTRICIAN | BUILDING_OWNER | INSURER | DEVICE_MANAGER | VIEWER |
+|-----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| USER_CREATE | x | x | | | | | | |
+| USER_DELETE | x | x | | | | | | |
+| TENANT_CREATE | x | | | | | | | |
+| TENANT_DELETE | x | | | | | | | |
+| DEVICE_REGISTER | x | x | x | | | | x | |
+| DEVICE_DECOMMISSION | x | x | x | | | | x | |
+| TELEMETRY_INGEST | x | | | | | | x | |
+| TELEMETRY_READ | x | x | x | x | x | | x | x |
+| ALERT_CREATE | x | x | x | | | | | |
+| ALERT_ACKNOWLEDGE | x | x | x | x | | | | |
+| ALERT_RESOLVE | x | x | x | x | | | | |
+| RISK_READ | x | x | x | | x | x | | x |
+| RISK_EXPORT | x | x | | | | x | | |
+| REPORT_GENERATE | x | x | x | | | | | |
+| SYSTEM_CONFIG | x | | | | | | | |
+| AUDIT_READ | x | x | | | | | | |
+
+Total: 34 fine-grained permissions across 8 roles.
+
+---
+
+## 4. JWT Claims Structure
+
 ```json
 {
   "sub": "user-uuid",
-  "iss": "https://keycloak.pyrosense.io/realms/pyrosense",
   "tenant_id": "tenant-uuid",
-  "roles": ["PROPERTY_MANAGER"],
-  "permissions": ["ALERT_READ", "ALERT_ACKNOWLEDGE", "DEVICE_READ"],
-  "device_id": null,
-  "scope": "openid profile",
-  "exp": 1710000000,
-  "iat": 1709996400
+  "realm_access": { "roles": ["PROPERTY_MANAGER"] },
+  "iat": 1705312245,
+  "exp": 1705315845,
+  "iss": "http://keycloak:8080/realms/pyrosense"
 }
 ```
 
-### Multi-Tenant Context
-- `tenant_id` claim extracted from JWT by `TenantContextFilter` in every service
-- Propagated via ThreadLocal (`TenantContext.set()`/`TenantContext.get()`)
-- Automatically cleared after every request (finally block)
-- All repository queries MUST filter by tenant — enforced by architecture tests
+Key points:
+- `sub`: User UUID (unique identifier)
+- `tenant_id`: Custom claim for multi-tenant isolation (authoritative source)
+- `realm_access.roles`: Keycloak standard claim for role assignment
+- `iss`: Issuer validated against configured Keycloak realm URL
+- `exp`: Token expiration (1 hour from issuance)
+- Signature: RS256 verified against Keycloak JWKS endpoint
 
 ---
 
-## 2. Role & Permission Matrix
+## 5. Tenant Isolation
 
-### Platform Roles (8)
+### Design Principles
 
-| Role | Description | Admin Level |
-|------|-------------|-------------|
-| `PLATFORM_ADMIN` | Full platform control | Yes |
-| `TENANT_ADMIN` | Tenant-level administration | Yes |
-| `PROPERTY_MANAGER` | Manages buildings and devices | No |
-| `OCCUPANT` | Read-only dashboards | No |
-| `ELECTRICIAN` | Alerts resolution and maintenance | No |
-| `INSURANCE_PARTNER` | Risk data access | No |
-| `DEVICE` | IoT device service account | No |
-| `SUPPORT_READONLY` | Cross-tenant read support | No |
+1. **Every query is tenant-scoped**: `tenant_id` included in WHERE clause of all database queries (enforced by ArchUnit tests)
+2. **Tenant derived from JWT only**: Never from client-supplied headers or request parameters
+3. **Gateway sanitization**: `X-Tenant-Id`, `X-User-Id`, and `X-Roles` headers are stripped from all incoming requests at the gateway before forwarding
+4. **TenantContext (ThreadLocal)**: Set by `TenantContextFilter` after JWT validation; automatically cleared in finally block after every request
+5. **Database model**: Shared schema with `tenant_id` column on every business table (no schema-per-tenant)
+6. **Kafka events**: `tenant_id` included in event payload (not topic-level partitioning); consumers filter by tenant context
 
-### Permission Matrix (34 permissions)
+### Enforcement Chain
 
-| Permission | PLATFORM_ADMIN | TENANT_ADMIN | PROPERTY_MANAGER | OCCUPANT | ELECTRICIAN | INSURANCE_PARTNER | DEVICE | SUPPORT_READONLY |
-|-----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| USER_CREATE | x | x | | | | | | |
-| USER_READ | x | x | x | | | | | x |
-| USER_UPDATE | x | x | | | | | | |
-| USER_DELETE | x | x | | | | | | |
-| TENANT_CREATE | x | | | | | | | |
-| TENANT_READ | x | x | x | | | | | x |
-| TENANT_UPDATE | x | x | | | | | | |
-| TENANT_DELETE | x | | | | | | | |
-| DEVICE_REGISTER | x | x | x | | | | | |
-| DEVICE_READ | x | x | x | x | x | | | x |
-| DEVICE_UPDATE | x | x | x | | | | | |
-| DEVICE_DECOMMISSION | x | x | x | | | | | |
-| TELEMETRY_INGEST | x | | | | | | x | |
-| TELEMETRY_READ | x | x | x | x | x | | | x |
-| ALERT_CREATE | x | x | x | | | | | |
-| ALERT_READ | x | x | x | x | x | x | | x |
-| ALERT_ACKNOWLEDGE | x | x | x | | x | | | |
-| ALERT_RESOLVE | x | x | x | | x | | | |
-| ALERT_ASSIGN | x | x | x | | | | | |
-| ALERT_ESCALATE | x | x | x | | | | | |
-| RISK_READ | x | x | x | x | | x | | x |
-| RISK_EXPORT | x | x | | | | x | | |
-| REPORT_READ | x | x | x | x | | x | | x |
-| REPORT_GENERATE | x | x | x | | | | | |
-| MAINTENANCE_CREATE | x | x | x | | x | | | |
-| MAINTENANCE_READ | x | x | x | | x | | | x |
-| MAINTENANCE_UPDATE | x | x | x | | x | | | |
-| MAINTENANCE_CLOSE | x | x | x | | x | | | |
-| SYSTEM_CONFIG | x | | | | | | | |
-| SYSTEM_MONITOR | x | x | | | | | | x |
-| AUDIT_READ | x | x | | | | | | x |
-| AUDIT_EXPORT | x | | | | | | | |
-| NOTIFICATION_SEND | x | x | x | | | | | |
-| NOTIFICATION_READ | x | x | x | x | x | | | x |
-
----
-
-## 3. STRIDE Threat Model
-
-### S — Spoofing
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| User identity | Credential theft, session hijacking | JWT with short expiry (15min), refresh tokens, Keycloak MFA |
-| Device identity | Impersonation of IoT sensors | HMAC-SHA256 device tokens, per-device secrets, automatic rotation |
-| Service identity | Service impersonation on internal network | mTLS between services (production), service accounts with client credentials |
-
-### T — Tampering
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| Telemetry data | Modified sensor readings | HMAC signature on device payloads (`X-Signature` + `X-Timestamp` headers) |
-| API requests | Parameter manipulation | Input validation (Jakarta Bean Validation), mass-assignment protection (`@AllowedFields`) |
-| Audit logs | Evidence destruction | Append-only audit table, no DELETE/UPDATE permissions on audit schema |
-| JWT tokens | Token modification | RS256 signature verification via Keycloak JWKS endpoint |
-
-### R — Repudiation
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| User actions | Denial of actions taken | AOP-based audit logging (`@Audited`): who, what, when, tenant, IP, user-agent |
-| Device telemetry | Denial of data submission | Immutable ingestion log with device_id + timestamp + HMAC |
-| Admin operations | Unauthorized changes denied | All mutations logged with `SecurityContext.getUserId()` |
-
-### I — Information Disclosure
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| Database credentials | Credential leakage | Environment variables only, `application-secret.yml` in .gitignore |
-| Tenant data | Cross-tenant data leak | `TenantContext` ThreadLocal enforcement, repository-level filtering |
-| JWT tokens | Token exposure in logs | Structured logging filters redact `Authorization` headers |
-| Error details | Stack traces in API responses | `ApiErrorResponse` returns code + message only, no stack traces |
-
-### D — Denial of Service
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| API Gateway | Request flooding | Redis-based rate limiting: 60 req/min default, 10 req/min auth, 120 req/min devices |
-| Services | Resource exhaustion | Request size limits, connection pooling, circuit breakers |
-| Database | Query flooding | Connection pool limits (HikariCP max 10), slow query alerting |
-
-### E — Elevation of Privilege
-
-| Asset | Threat | Mitigation |
-|-------|--------|------------|
-| User roles | Self-escalation | Role assignment restricted to PLATFORM_ADMIN/TENANT_ADMIN only |
-| Tenant access | Cross-tenant access | JWT `tenant_id` claim is authoritative, not request parameters |
-| Device scope | Device accessing user data | DEVICE role limited to TELEMETRY_INGEST permission only |
-| Admin endpoints | Unauthorized admin access | `@PreAuthorize("hasRole('PLATFORM_ADMIN')")` on all admin operations |
-
----
-
-## 4. OWASP ASVS Compliance
-
-### V1 — Architecture, Design, Threat Modeling
-- [x] Hexagonal architecture with clear boundaries
-- [x] Input validation at application boundary (controllers)
-- [x] Security controls in dedicated config classes
-- [x] STRIDE threat model documented
-
-### V2 — Authentication
-- [x] Keycloak handles authentication (delegated to IdP)
-- [x] JWT RS256 signature verification
-- [x] Account lockout after 5 failed attempts (30min auto-unlock)
-- [x] Device credential rotation with configurable expiry
-
-### V3 — Session Management
-- [x] Stateless (no server-side sessions)
-- [x] JWT short-lived tokens (15min)
-- [x] Refresh token rotation via Keycloak
-
-### V4 — Access Control
-- [x] RBAC with 8 roles and 34 fine-grained permissions
-- [x] Method-level security (`@PreAuthorize`)
-- [x] Tenant isolation via JWT-derived `tenant_id`
-- [x] No direct object reference exposure (UUIDs)
-
-### V5 — Validation, Sanitization, Encoding
-- [x] Jakarta Bean Validation on all DTOs
-- [x] Mass-assignment protection (`@AllowedFields` annotation)
-- [x] Content-Type enforcement
-- [x] CSP headers: `default-src 'self'`
-
-### V7 — Error Handling and Logging
-- [x] Structured audit logging (AOP `@Audited`)
-- [x] No sensitive data in error responses
-- [x] RFC 7807 problem detail format
-- [x] Correlation IDs (`X-Request-Id`)
-
-### V8 — Data Protection
-- [x] TLS 1.3 in production (all channels)
-- [x] No secrets in source code
-- [x] Database-level encryption at rest
-- [x] HMAC for device payload integrity
-
-### V9 — Communication Security
-- [x] HTTPS enforced (HSTS header)
-- [x] mTLS for inter-service communication (production)
-- [x] MQTT over TLS for IoT devices
-- [x] Kafka SASL/SCRAM + TLS
-
-### V13 — API Security
-- [x] Rate limiting (Redis-backed, per-IP, per-endpoint-category)
-- [x] Request size limits
-- [x] CORS strict configuration (explicit origins, methods, headers)
-- [x] Security headers (X-Frame-Options, CSP, HSTS, X-Content-Type-Options)
-
----
-
-## 5. API Security Controls
-
-### SecurityFilterChain (every service)
 ```
-STATELESS session → CORS → CSP/Frame headers → authorize → OAuth2 JWT → TenantContext filter
+Client Request
+    │
+    ▼
+API Gateway (strips tenant headers from request)
+    │
+    ▼
+JWT Validation (extracts tenant_id from verified token)
+    │
+    ▼
+TenantContextFilter (sets ThreadLocal TenantContext)
+    │
+    ▼
+Service Layer (@PreAuthorize checks)
+    │
+    ▼
+Repository Layer (all queries include WHERE tenant_id = :tenantId)
+    │
+    ▼
+Response (TenantContext cleared in finally block)
 ```
 
-### Security Headers
-| Header | Value |
-|--------|-------|
-| `Content-Security-Policy` | `default-src 'self'` |
-| `X-Frame-Options` | `DENY` |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-XSS-Protection` | `0` (CSP is sufficient) |
-| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+---
 
-### CORS Configuration
-- `allowedOrigins`: from `CORS_ORIGINS` environment variable
-- `allowedMethods`: GET, POST, PUT, PATCH, DELETE
-- `allowedHeaders`: Authorization, Content-Type, X-Tenant-Id, X-Request-Id
-- `allowCredentials`: true
-- `maxAge`: 3600s
+## 6. Device Authentication Protocol
 
-### Rate Limiting (API Gateway)
-| Endpoint Category | Limit | Window |
-|-------------------|-------|--------|
-| Authentication (`/api/v1/auth/**`) | 10 requests | 1 minute |
-| Device ingestion (`/api/v1/signals/**`) | 120 requests | 1 minute |
-| Default (all other) | 60 requests | 1 minute |
+### Provisioning
 
-Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After`
+1. Admin registers device via API (requires DEVICE_REGISTER permission)
+2. Platform generates 32-byte cryptographically random token (`SecureRandom`)
+3. Token returned to admin in registration response (displayed once)
+4. Only SHA-256 hash of token is persisted in database
+5. Plaintext token is never stored or logged
+
+### Storage
+
+- Database stores: `device_id`, `token_hash` (SHA-256), `created_at`, `expires_at`, `status`
+- No plaintext token exists after the initial response
+- Hash comparison uses constant-time algorithm to prevent timing attacks
+
+### Usage
+
+1. Device includes token in request: `Authorization: Bearer <token>`
+2. Platform computes SHA-256 hash of received token
+3. Hash compared against stored hash (constant-time comparison)
+4. If match: request proceeds with device context set
+5. If mismatch: 401 Unauthorized returned
+
+### Rotation
+
+1. Admin initiates rotation (or auto-rotation near expiry)
+2. New 32-byte token generated, returned to admin once
+3. New hash stored; old token remains valid for configurable grace period
+4. After grace period: old token invalidated
+5. Device must be reconfigured with new token during grace period
+
+### Revocation
+
+- Immediate invalidation: device token marked as REVOKED in database
+- All subsequent requests with revoked token return 401
+- Device is blocked from all platform access instantly
+- Revocation logged in audit trail
 
 ---
 
-## 6. IoT Device Security
+## 7. Secrets Management
 
-### Device Authentication Flow
-```
-1. Device registered → identity-service issues HMAC token (32-byte SecureRandom)
-2. Token stored as SHA-256 hash (never plaintext)
-3. Device sends telemetry with: Authorization: Bearer <token>
-4. Gateway validates token via identity-service /api/v1/auth/device/validate
-5. Device credential auto-expires (configurable, default 90 days)
-```
+### Development
 
-### Payload Integrity (Anti-Tampering)
-```
-Headers:
-  X-Timestamp: <unix-epoch-seconds>
-  X-Signature: HMAC-SHA256(device_secret, timestamp + "." + request_body)
+- `.env.docker` file with local-only defaults (non-sensitive values)
+- Docker Compose reads environment from `.env.docker`
+- Values are development defaults only (e.g., `postgres`/`postgres`)
 
-Server verification:
-  1. Check |now - timestamp| < 5 minutes (replay window)
-  2. Recompute HMAC and compare (constant-time)
-  3. Reject if signature mismatch
-```
+### Production
 
-### Device Credential Rotation
-- Automatic rotation triggered when credential is within 7 days of expiry
-- Rotation: generate new token → hash → store → revoke old immediately
-- Grace period: none (old token invalid immediately after rotation)
-- Max authentication count tracked for anomaly detection
-
-### IoT Protection Rules
-1. DEVICE role can ONLY call `TELEMETRY_INGEST` — no other endpoint accessible
-2. Device tokens are tenant-scoped — cannot submit data for another tenant
-3. Per-device rate limit: 120 req/min (covers 1-second polling)
-4. Payload size limit: 10KB per telemetry request
-5. Device credentials are non-transferable (bound to device_id)
-6. Revoked devices immediately blocked (check on every request)
-7. Suspicious patterns (burst beyond 3x normal rate) trigger auto-revocation alert
-
----
-
-## 7. Attack Protections
-
-### SQL Injection
-- Spring Data JPA parameterized queries (no string concatenation)
-- No native queries with user input
-- Flyway-managed schema (no dynamic DDL)
-
-### XSS (Cross-Site Scripting)
-- API-only (no HTML rendering) — primary mitigation
-- `Content-Security-Policy: default-src 'self'` prevents inline scripts
-- `X-Content-Type-Options: nosniff` prevents MIME sniffing
-- All string inputs validated with `@Size` constraints
-
-### CSRF (Cross-Site Request Forgery)
-- Disabled: stateless JWT API (no cookies for auth)
-- CORS restricts origins that can make requests
-
-### SSRF (Server-Side Request Forgery)
-- No user-controlled outbound URLs in any service
-- Webhook URLs (if added) restricted to allowed domain whitelist
-- Internal service communication uses hardcoded base URLs (not from request)
-
-### Replay Attacks
-- Device telemetry: HMAC + timestamp (5-minute replay window)
-- JWT tokens: `exp` claim + server-side validation
-- Idempotency keys on ingestion (Redis-based dedup)
-
-### Mass Assignment
-- `@AllowedFields` annotation on controller parameters
-- DTOs are Java records (immutable, no setters)
-- Only explicitly mapped fields from request to domain
-
----
-
-## 8. Audit Logging
-
-### Implementation
-- AOP aspect intercepts methods annotated with `@Audited`
-- Captures: userId, tenantId, action, resourceType, resourceId, IP, user-agent, timestamp
-- Stored in append-only `audit_log` table (no UPDATE/DELETE privileges)
-
-### What is Audited
-| Action | Resource | Actors |
-|--------|----------|--------|
-| User registration | User | PLATFORM_ADMIN, TENANT_ADMIN |
-| Role assignment | Membership | PLATFORM_ADMIN, TENANT_ADMIN |
-| Device credential issuance | DeviceCredential | PLATFORM_ADMIN, TENANT_ADMIN, PROPERTY_MANAGER |
-| Alert acknowledgment | Alert | PROPERTY_MANAGER, ELECTRICIAN |
-| Alert resolution | Alert | PROPERTY_MANAGER, ELECTRICIAN |
-| Risk export | RiskReport | INSURANCE_PARTNER |
-| Tenant creation/deactivation | Tenant | PLATFORM_ADMIN |
-
-### Retention
-- Audit logs retained for 5 years (compliance requirement)
-- No PII in audit details (references by ID only)
-
----
-
-## 9. Secrets Management
+- All secrets provided via environment variables
+- Container orchestrator manages secret injection (Docker Secrets, K8s Secrets)
+- No secret files mounted except through orchestrator mechanisms
+- Secrets rotated via orchestrator without service restart where possible
 
 ### Rules
-1. **No secrets in Git** — enforced by `.gitignore`
-2. `application-secret.yml` MUST be in `.gitignore`
-3. All secrets via environment variables
-4. `application-secret.example.yml` provides template
 
-### Secret Categories
-| Category | Variable | Example |
-|----------|----------|---------|
-| Database | `DB_PASSWORD` | (generated) |
-| Keycloak | `KEYCLOAK_CLIENT_SECRET` | (from Keycloak admin) |
-| Kafka SASL | `KAFKA_SASL_PASSWORD` | (generated) |
-| Redis | `REDIS_PASSWORD` | (generated) |
-| MQTT | `MQTT_TLS_KEYSTORE_PASSWORD` | (generated) |
-| SMTP | `SMTP_PASSWORD` | (service-specific) |
-| Twilio | `TWILIO_AUTH_TOKEN` | (from Twilio) |
-| Device signing | `DEVICE_HMAC_SECRET` | (32-byte random) |
+1. **Never in Git**: `application-secret.yml` listed in `.gitignore`
+2. **No secrets in code**: No hardcoded credentials anywhere
+3. **No secrets logged**: All sensitive values masked in outputs
+4. **Template provided**: `application-secret.example.yml` documents required variables
 
-### HashiCorp Vault Migration Path
+### Future: HashiCorp Vault Integration
+
 ```yaml
-# application-secret.yml (future with Vault)
 spring:
   cloud:
     vault:
@@ -363,63 +258,77 @@ spring:
       authentication: KUBERNETES
       kubernetes:
         role: pyrosense-service
-        service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
       kv:
         backend: secret
         default-context: pyrosense
 ```
 
-When Vault is deployed:
-1. Store all secrets in `secret/pyrosense/<service-name>`
-2. Add `spring-cloud-starter-vault-config` dependency
-3. Remove environment variable references
-4. Configure Vault AppRole or Kubernetes auth method
-5. Enable secret rotation policies (30-day max for DB credentials)
+Migration path:
+1. Deploy Vault with Kubernetes auth backend
+2. Store all secrets in `secret/pyrosense/<service-name>`
+3. Add `spring-cloud-starter-vault-config` dependency
+4. Replace environment variable references with Vault paths
+5. Enable secret rotation policies (30-day max for database credentials)
 
 ---
 
-## 10. Communication Security
+## 8. OWASP Top 10 Mitigations
 
-| Channel | Development | Production |
-|---------|-------------|------------|
-| REST API | HTTP | HTTPS (TLS 1.3) |
-| MQTT | TCP (plain) | TLS + client certificate |
-| Kafka | PLAINTEXT | SASL/SCRAM-SHA-512 + TLS |
-| PostgreSQL | Plain | SSL mode=verify-full |
-| Redis | No auth | AUTH + TLS |
-| Inter-service | HTTP | mTLS |
+| # | Vulnerability | Mitigation |
+|---|---------------|------------|
+| A01 | Broken Access Control | RBAC (8 roles, 34 permissions), method-level `@PreAuthorize`, tenant isolation via JWT, no direct object references (UUIDs only) |
+| A02 | Cryptographic Failures | TLS 1.3 in production, RS256 JWT signatures, HMAC-SHA256 for device payloads, no secrets in code/logs |
+| A03 | Injection | Spring Data JPA parameterized queries, no native queries with user input, Jakarta Bean Validation on all DTOs |
+| A04 | Insecure Design | Hexagonal architecture, threat modeling (STRIDE), security controls in dedicated config classes, ArchUnit enforcement |
+| A05 | Security Misconfiguration | Security headers enforced, actuator endpoints protected, CORS strict configuration, debug disabled in production |
+| A06 | Vulnerable Components | OWASP Dependency Check in CI (CVSS < 7 gate), Dependabot alerts, regular dependency updates |
+| A07 | Identification & Auth Failures | Keycloak with account lockout, short-lived JWTs, device token expiry, rate limiting on auth endpoints (10/min) |
+| A08 | Software & Data Integrity Failures | HMAC-SHA256 on device payloads, signed JWTs, Flyway-managed schema migrations, CI/CD pipeline integrity |
+| A09 | Security Logging & Monitoring Failures | AOP audit logging, structured JSON logs, Prometheus alerting (14 rules), Kafka event trail, correlation IDs |
+| A10 | Server-Side Request Forgery | No user-controlled outbound URLs, internal services use hardcoded base URLs, webhook URLs restricted to allowlist |
 
 ---
 
-## 11. Network Architecture (Production)
+## 9. Security Headers
 
-```
-                        ┌─────────────────────────┐
-                        │   WAF / Load Balancer   │
-                        │   (TLS termination)     │
-                        └───────────┬─────────────┘
-                                    │ HTTPS
-                        ┌───────────▼─────────────┐
-                        │   API Gateway :8080     │
-                        │   Rate limiting, CORS   │
-                        │   JWT validation        │
-                        └───────────┬─────────────┘
-                                    │ Internal (mTLS)
-        ┌───────────────────────────┼───────────────────────────┐
-        │               │               │               │       │
-  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐  │
-  │ Identity  │  │ Alerting  │  │   Risk    │  │  Device   │  ...
-  │   :8081   │  │   :8086   │  │   :8085   │  │   :8082   │
-  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
-        │               │               │               │
-        └───────────────┴───────┬───────┴───────────────┘
-                                │
-              ┌─────────────────┼─────────────────┐
-              │                 │                  │
-        ┌─────▼─────┐   ┌─────▼─────┐   ┌───────▼───────┐
-        │PostgreSQL │   │   Redis   │   │    Kafka      │
-        │  (SSL)    │   │  (AUTH)   │   │ (SASL+TLS)   │
-        └───────────┘   └───────────┘   └───────────────┘
-```
+Set by the API Gateway on all responses:
 
-All internal services are NOT exposed to the internet. Only the API Gateway is publicly accessible behind the WAF/Load Balancer.
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` | Force HTTPS for 1 year |
+| `X-Content-Type-Options` | `nosniff` | Prevent MIME sniffing |
+| `X-XSS-Protection` | `0` | Disabled (CSP is sufficient, avoids legacy browser issues) |
+| `Content-Security-Policy` | `default-src 'self'` | Restrict resource loading to same origin |
+| `X-Frame-Options` | `DENY` | Prevent clickjacking (no framing allowed) |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limit referrer information leakage |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disable unnecessary browser features |
+
+---
+
+## 10. Actuator Protection
+
+Spring Boot Actuator endpoints are secured by role:
+
+| Endpoint | Access Level | Notes |
+|----------|-------------|-------|
+| `/actuator/health` | Public (unauthenticated) | Used by load balancers and orchestrators |
+| `/actuator/info` | Public (unauthenticated) | Build info and version only |
+| `/actuator/prometheus` | Network-restricted | Prometheus scrape only (internal network) |
+| `/actuator/metrics` | ADMIN role required | Detailed metrics data |
+| `/actuator/env` | Not exposed | Disabled in production |
+| `/actuator/beans` | Not exposed | Disabled in production |
+| `/actuator/heapdump` | Not exposed | Disabled in production |
+| `/actuator/threaddump` | Not exposed | Disabled in production |
+| All others | ADMIN role required or not exposed | Default deny policy |
+
+Configuration:
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+```

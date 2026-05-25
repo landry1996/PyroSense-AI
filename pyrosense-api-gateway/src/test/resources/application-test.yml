@@ -1,0 +1,40 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs
+          issuer-uri: http://localhost:8180/realms/pyrosense
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: http://localhost:3000
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+management:
+  health:
+    redis:
+      enabled: false
+
+pyrosense:
+  gateway:
+    max-payload-bytes: 1048576
+  services:
+    identity-url: http://localhost:8081
+    device-url: http://localhost:8082
+    ingestion-url: http://localhost:8083
+    analysis-url: http://localhost:8084
+    scoring-url: http://localhost:8085
+    alerting-url: http://localhost:8086
+    notification-url: http://localhost:8087
+    reporting-url: http://localhost:8091
+    maintenance-url: http://localhost:8089

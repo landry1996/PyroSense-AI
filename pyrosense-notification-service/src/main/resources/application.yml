@@ -5,10 +5,6 @@ spring:
     url: jdbc:postgresql://localhost:5432/pyrosense_notification
     username: ${DB_USERNAME:pyrosense}
     password: ${DB_PASSWORD:pyrosense}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
   flyway:
     enabled: true
   kafka:
@@ -16,9 +12,12 @@ spring:
     consumer:
       group-id: notification-group
       auto-offset-reset: earliest
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:1025}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER:http://localhost:8180/realms/pyrosense}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET:http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs}
 
 server:
   port: 8087
@@ -27,4 +26,26 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+pyrosense:
+  notification:
+    kafka:
+      alerting-topic: alerting-events
+    retry:
+      interval-ms: 30000

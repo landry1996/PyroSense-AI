@@ -1,0 +1,30 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER:http://keycloak:8080/realms/pyrosense}
+
+pyrosense:
+  services:
+    identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+    device-url: ${DEVICE_SERVICE_URL:http://device-service:8082}
+    ingestion-url: ${INGESTION_SERVICE_URL:http://ingestion-service:8083}
+    analysis-url: ${ANALYSIS_SERVICE_URL:http://analysis-service:8084}
+    scoring-url: ${SCORING_SERVICE_URL:http://scoring-service:8085}
+    alerting-url: ${ALERTING_SERVICE_URL:http://alerting-service:8086}
+    notification-url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8087}
+    reporting-url: ${REPORTING_SERVICE_URL:http://reporting-service:8091}
+    maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8089}
+
+management:
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector:4318/v1/traces}
+
+logging:
+  config: classpath:logback-spring.xml

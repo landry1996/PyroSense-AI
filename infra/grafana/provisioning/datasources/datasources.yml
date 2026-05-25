@@ -12,3 +12,9 @@ datasources:
     access: proxy
     url: http://loki:3100
     editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: prometheus
+          matcherRegex: '"traceId":"(\w+)"'
+          name: TraceID
+          url: ''

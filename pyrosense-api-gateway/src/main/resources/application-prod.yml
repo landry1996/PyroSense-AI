@@ -1,0 +1,23 @@
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ORIGINS}
+            allowedMethods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders: X-Correlation-Id,X-RateLimit-Limit,X-RateLimit-Remaining
+            allowCredentials: true
+            maxAge: 86400
+
+pyrosense:
+  gateway:
+    max-payload-bytes: 524288
+
+logging:
+  level:
+    com.pyrosense.gateway: INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.security: WARN
+    root: WARN

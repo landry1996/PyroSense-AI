@@ -1,6 +1,6 @@
 # PyroSense AI Platform - TODO & Progress Tracker
 
-## Status: Skeleton Complete | Implementation In Progress
+## Status: MVP Complete | Documentation Finalized
 
 ---
 
@@ -15,7 +15,7 @@
 - [x] .env.example (documented environment variables)
 - [x] owasp-suppressions.xml
 
-### Shared Kernel (FULLY IMPLEMENTED - 52 tests passing)
+### Shared Kernel (FULLY IMPLEMENTED - 77 tests passing)
 - [x] DomainEvent interface
 - [x] AggregateRoot base class (with event registration)
 - [x] DomainEntity interface
@@ -138,7 +138,7 @@
 - [x] Unit tests: 24 domain model, 13 scoring engine, 5 use case, 8 ArchUnit, 1 context load
 - [x] Documentation: docs/risk-scoring.md
 
-### Alerting Service (FULLY IMPLEMENTED - 78 tests passing)
+### Alerting Service (FULLY IMPLEMENTED - 85 tests passing)
 - [x] Domain model: Alert aggregate (state machine), AlertStatus (OPEN/ACKNOWLEDGED/IN_PROGRESS/RESOLVED/FALSE_POSITIVE), AlertType (11 types), EscalationLevel, SlaPolicy, DeduplicationKey, AlertComment
 - [x] Domain events: AlertCreatedEvent, AlertAcknowledgedEvent, AlertAssignedEvent, AlertResolvedEvent, AlertEscalatedEvent
 - [x] Ports in: CreateAlertUseCase (with deduplication), ManageAlertUseCase (acknowledge/assign/resolve/false-positive/comment), GetAlertQuery (multi-criteria), EscalateAlertsUseCase
@@ -175,9 +175,27 @@
 - [x] Shared Kernel: PlatformRole enum, Permission enum (34), TenantContext (ThreadLocal), SecurityContext record, AuditEntry record
 - [x] Shared Kernel: PayloadIntegrity utility (HMAC-SHA256 sign/verify, 5min replay window, constant-time comparison)
 - [x] Shared Kernel: @AllowedFields annotation (anti mass-assignment)
-- [x] API Gateway: SecurityConfig hardened (CSP, frame-options DENY, cache disabled, PyroSenseGrantedAuthoritiesConverter)
-- [x] API Gateway: RateLimitingFilter (Redis-based, 60/10/120 req/min by endpoint type)
-- [x] API Gateway: SecurityHeadersFilter (HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+### API Gateway (FULLY IMPLEMENTED - 55 tests passing)
+- [x] Routing: 11 routes to 9 downstream services (configurable URLs via env vars)
+- [x] JWT validation: OAuth2 Resource Server with Keycloak (realm_access.roles + permissions extraction)
+- [x] Tenant extraction: JwtHeaderPropagationFilter (X-Tenant-Id from JWT tenant_id claim)
+- [x] Header propagation: X-Correlation-Id, X-Tenant-Id, X-User-Id, X-Roles to downstream services
+- [x] Tenant header sanitization: strips X-Tenant-Id/X-User-Id/X-Roles from incoming requests (prevents spoofing)
+- [x] Rate limiting: Redis-based (RateLimitStore port), 60/10/120 req/min by endpoint type, X-RateLimit headers
+- [x] CORS: configurable origins, exposed headers, credentials, max-age
+- [x] Request correlation: generates UUID if X-Correlation-Id missing, propagates and returns in response
+- [x] Structured logging: logback-spring.xml with JSON output in prod (logstash-logback-encoder), MDC correlationId
+- [x] Security headers: HSTS, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy, CSP, X-Frame-Options DENY
+- [x] Error masking: ErrorMaskingFilter hides internal details, returns generic messages with correlationId
+- [x] Payload size limit: PayloadSizeLimitFilter (configurable, default 1MB, returns 413)
+- [x] Internal endpoint protection: /actuator/** requires ADMIN role (except health/info)
+- [x] Health checks: /actuator/health, /actuator/info publicly accessible
+- [x] Public endpoints: device auth validation, report download (token-gated)
+- [x] SecurityConfig: CSP, frame-options DENY, cache disabled, PyroSenseGrantedAuthoritiesConverter
+- [x] Filter ordering: sanitization(-20) → payload(-15) → tracing(-10) → propagation(-5) → headers(-2) → rate-limit(0)
+- [x] Profiles: application.yml (base), application-local.yml (debug), application-prod.yml (strict), application-test.yml
+- [x] Unit tests: 5 SecurityConfig, 3 RequestTracing, 5 TenantSanitization, 4 PayloadSizeLimit, 6 RateLimiting, 2 SecurityHeaders, 4 ErrorMasking, 5 JwtPropagation, 3 FilterOrder, 2 GatewayConfig
+- [x] Integration tests: 4 GatewayApplicationTest (context load, health, 401, info)
 - [x] Cross-service SecurityConfig: alerting, risk-scoring, device, ingestion — all with JWT + TenantContext + PyroSenseGrantedAuthoritiesConverter
 - [x] application-secret.example.yml with Vault migration path
 - [x] docs/security.md: STRIDE threat model, OWASP ASVS, role/permission matrix, IoT rules, attack protections
@@ -227,30 +245,138 @@
 - [x] Context load test (embedded Kafka)
 - [x] Documentation: docs/reporting.md
 
-### Service Skeletons (remaining 1 module)
-- [x] pyrosense-notification-service (port 8087) - Multi-channel, SendNotificationUseCase
+### Notification Service (FULLY IMPLEMENTED - 48 tests passing)
+- [x] Domain model: Notification aggregate (retry state machine PENDING → SENT / RETRYING → FAILED), NotificationChannel (5: EMAIL, SMS, PUSH, WEBHOOK, DASHBOARD), NotificationStatus, RecipientType (4), DeduplicationKey
+- [x] Channel routing policy: INFO→DASHBOARD, WARNING→EMAIL+DASHBOARD, CRITICAL→SMS+PUSH+EMAIL+DASHBOARD (pure domain logic)
+- [x] Recipient model: consent flags (consentEmail, consentSms, consentPush), canReceive(channel) checks consent before dispatch
+- [x] Templates per severity with variable substitution ({alertType}, {deviceId}, {occurredAt})
+- [x] Anti-spam / deduplication: alertFingerprint (alertId:deviceId:severity) + recipientId + channel, 30-minute window
+- [x] Retry with exponential backoff: 30s → 2min → 10min (max 3 retries), then FAILED
+- [x] Domain events consumed: alerting.alert.created (from alerting-events topic)
+- [x] Ports in: SendNotificationUseCase (dispatchForAlert), GetNotificationQuery, RetryNotificationUseCase
+- [x] Ports out: EmailProviderPort, SmsProviderPort, PushProviderPort, WebhookProviderPort, RecipientResolverPort, DeduplicationPort, NotificationRepositoryPort
+- [x] Use case implementations: SendNotificationService (routing + consent + dedup + dispatch), NotificationDispatcher, GetNotificationService, RetryNotificationService
+- [x] Kafka consumer: KafkaAlertEventListener (alerting-events topic, filters alerting.alert.created)
+- [x] REST API: GET /notifications?tenantId&status, GET /{id}, GET /recipient/{recipientId}, GET /statistics
+- [x] Simulated adapters: LoggingEmailProvider, LoggingSmsProvider, LoggingPushProvider, LoggingWebhookProvider (masked PII in logs)
+- [x] StubRecipientResolver (MVP, deterministic recipients per tenant)
+- [x] InMemoryDeduplicationAdapter (ConcurrentHashMap, 30-min window)
+- [x] JDBC persistence: JdbcNotificationRepository with state replay from DB
+- [x] SecurityConfig: OAuth2 JWT + TenantContext
+- [x] RetryScheduler: @Scheduled with configurable interval (default 30s)
+- [x] RGPD compliance: no PII in persistence/logs, maskedPhone (***1234), maskedEmail (j***e@domain.com), consent enforcement
+- [x] Flyway V001: notifications table with partial index on RETRYING status
+- [x] Unit tests: 8 NotificationTest, 6 ChannelRoutingPolicyTest, 7 RecipientTest, 6 NotificationTemplateTest, 7 SendNotificationServiceTest, 3 RetryNotificationServiceTest
+- [x] ArchUnit tests: 10 rules (hexagonal enforcement)
+- [x] Context load test (embedded Kafka)
+- [x] Documentation: docs/notification.md
+
+### IoT Simulator (tools/pyrosense-iot-simulator - 38 tests passing)
+- [x] Standalone Maven module (not part of platform build)
+- [x] Domain model: SimulatedTenant, SimulatedBuilding, SimulatedDevice, TelemetryReading (10 metrics)
+- [x] 7 scenarios: NORMAL, INSULATION_DEGRADATION_PROGRESSIVE, LOOSE_CONNECTION, MICRO_ARC_RECURRENT, OVERLOAD, TEMPERATURE_RISE, DEVICE_OFFLINE
+- [x] ScenarioEngine with realistic data generation (progressive degradation, random spikes, sinusoidal overload)
+- [x] SimulationEngine: multi-tenant, scheduled publishing, time acceleration, per-device scenario override
+- [x] MQTT publisher (HiveMQ client, topic format pyrosense/{tenantId}/{deviceId}/telemetry)
+- [x] REST publisher (Java HttpClient, fallback to ingestion REST API)
+- [x] Interactive CLI: start/stop, scenario selection, device listing, status, config display
+- [x] Full CLI arg parsing (--tenants, --devices, --interval, --acceleration, --days, etc.)
+- [x] Dockerfile (multi-stage, eclipse-temurin:21)
+- [x] README with usage examples, scenario descriptions, payload reference
+- [x] Tests: TelemetryReadingTest (2), SimulatedDeviceTest (4), SimulatedTenantTest (4), SimulatorConfigTest (3), SimulationEngineTest (6), ScenarioEngineTest (19)
+
+### Observability (PRODUCTION-READY - all 10 services instrumented)
+- [x] Spring Boot Actuator: health, info, prometheus, metrics endpoints exposed (all others excluded)
+- [x] Actuator security: /actuator/** requires ADMIN role (except health/info public)
+- [x] Micrometer metrics: application tag, percentile histograms on HTTP requests
+- [x] Prometheus integration: micrometer-registry-prometheus on all services
+- [x] Business metrics: pyrosense_telemetry_*, pyrosense_analysis_*, pyrosense_risk_*, pyrosense_alerts_*, pyrosense_notifications_*, pyrosense_devices_*
+- [x] Distributed tracing: Micrometer Tracing bridge → OpenTelemetry (OTLP HTTP 4318)
+- [x] Trace context propagation: W3C traceparent (HTTP) + Kafka headers + X-Correlation-Id alignment
+- [x] Sampling: configurable via TRACING_SAMPLING env var (default 1.0, recommend 0.1 in prod)
+- [x] Structured logging: logstash-logback-encoder v7.4, JSON in docker/prod, human-readable in local/test
+- [x] MDC fields: traceId, spanId, correlationId, tenantId (auto-propagated)
+- [x] Logback per service: logback-spring.xml with profile-based appender selection
+- [x] OpenTelemetry Collector: otel-collector-config.yml (OTLP gRPC+HTTP receivers, batch processor, memory limiter)
+- [x] Prometheus alert rules: 14 rules in 6 groups (service-health, ingestion, kafka, devices, risk-alerting, notifications)
+- [x] Grafana dashboards: 3 provisioned (platform-overview, ingestion-pipeline, alerting-notifications)
+- [x] Grafana datasources: Prometheus + Loki (with traceId derived field)
+- [x] Docker Compose: otel-collector service (otel/opentelemetry-collector-contrib:0.96.0), dashboards volume mount
+- [x] Security: no PII in logs, no secrets logged, masked credentials, no payload content in logs
+- [x] Gateway ObservabilityConfigTest: 4 tests (MeterRegistry, application tag, JVM metrics, process metrics)
+- [x] Documentation: docs/observability.md (full stack reference, metrics catalog, alerts, dashboards, config)
+
+### Quality Engineering (FULLY CONFIGURED)
+- [x] Testing strategy: docs/testing-strategy.md (pyramid, layers, conventions, rules)
+- [x] JaCoCo: per-layer coverage enforcement (domain 90%, application 85%, config excluded)
+- [x] JaCoCo exclusions: *Application.java, *Config.java, adapter/in/rest/dto/**
+- [x] ArchUnit per service: 10 rules (hexagonal, ports are interfaces, no field injection, layered)
+- [x] ArchUnit platform-wide: PlatformArchitectureRulesTest (no cycles, no cross-context, controllers↛repos)
+- [x] ArchUnit naming: NamingConventionTest (*UseCase, *Port, *Adapter, *Event, *Exception, *Config)
+- [x] Security tests: TenantSecurityTest (JWT, header stripping, RBAC, actuator protection)
+- [x] Performance smoke: IngestionPerformanceSmokeTest (1000 msgs < 5s)
+- [x] Performance smoke: RiskScoringPerformanceSmokeTest (500 calcs < 3s)
+- [x] Testcontainers: PostgreSQL/TimescaleDB (DevicePersistenceIT)
+- [x] Testcontainers: Kafka (KafkaEventPublisherIT)
+- [x] Testcontainers: Redis (RedisIdempotencyIT)
+- [x] Testcontainers: shared container configs (singleton pattern)
+- [x] Spotless: Palantir Java Format, enforced in validate phase and CI
+- [x] GitHub Actions CI: 6 jobs (build, integration, coverage, security, docker, quality)
+- [x] CI concurrency: cancel in-progress runs for same branch
+- [x] CI artifacts: test results (7d), coverage (14d), OWASP reports (14d)
+- [x] Maven profiles: test (failsafe), docker, prod (OWASP)
+
+### Docker & Local Development (FULLY CONFIGURED)
+- [x] docker-compose.yml: full stack with profiles (services, simulator, full)
+- [x] docker-compose.override.yml: JDWP debug ports for all services (5010-5019)
+- [x] Docker network: pyrosense-network (bridge, dedicated)
+- [x] Named volumes: 8 persistent volumes (pgdata, redis, kafka, mosquitto, prometheus, grafana, loki)
+- [x] Healthchecks: all services with start_period, interval, retries
+- [x] Dockerfile per service: multi-stage (build + JRE), non-root user, healthcheck
+- [x] .dockerignore: optimized build context (excludes target/, IDE, docs, tools)
+- [x] .env.docker: local development defaults (no real secrets)
+- [x] .env.example: documented template for all variables
+- [x] application-docker.yml: Spring profile for all 10 services (Docker DNS resolution)
+- [x] scripts/start-local.sh: interactive start with profile selection
+- [x] scripts/stop-local.sh: graceful stop (--remove option)
+- [x] scripts/reset-local.sh: destructive reset with confirmation (--force option)
+- [x] Maven docker profile: spring-boot-maven-plugin with image naming
+- [x] Prometheus config: dual targets (Docker DNS + host.docker.internal)
+- [x] Kafka: external listener on port 29092 for IDE development
+- [x] Documentation: docs/local-dev.md (workflows, ports, debugging, troubleshooting)
 
 ### Infrastructure
-- [x] Docker Compose (PostgreSQL, Redis, Kafka, Mosquitto, Keycloak, Prometheus, Grafana, Loki)
+- [x] Docker Compose (PostgreSQL, Redis, Kafka, Mosquitto, Keycloak, Prometheus, Grafana, Loki, OpenTelemetry Collector)
 - [x] Multi-database init script (9 databases with TimescaleDB)
 - [x] Mosquitto config
-- [x] Prometheus scrape config (all 10 services)
-- [x] Prometheus alert rules
+- [x] Prometheus scrape config (all 10 services, dual targets)
+- [x] Prometheus alert rules (14 rules, 6 groups)
 - [x] Loki config
-- [x] Grafana provisioning (datasources)
+- [x] Grafana provisioning (datasources + 3 dashboards)
+- [x] OpenTelemetry Collector config (OTLP receivers, batch processor, Prometheus exporter)
 
-### Documentation
-- [x] README.md (project overview, quick start, tech stack)
-- [x] docs/architecture.md (C4, bounded contexts, ADRs, hexagonal)
-- [x] docs/security.md (auth, OWASP, secrets, network)
-- [x] docs/devops.md (containers, CI/CD, observability, scaling)
-- [x] docs/testing-strategy.md (pyramid, tools, conventions)
+### Documentation (COMPLETE - 17 documents)
+- [x] README.md (project overview, quick start, profiles, access points, debug ports, full doc links)
+- [x] docs/architecture.md (C4 diagrams, hexagonal architecture, bounded contexts, 14 ADRs, limitations)
+- [x] docs/domain-model.md (aggregates, entities, value objects, 40+ domain events, business rules, glossary)
+- [x] docs/api-documentation.md (all REST endpoints, request/response examples, error codes, rate limiting)
+- [x] docs/iot-protocol.md (MQTT topics, payloads, device authentication, heartbeat, integrity, simulator)
+- [x] docs/security.md (STRIDE threat model, RBAC matrix, JWT claims, tenant isolation, OWASP mitigations)
+- [x] docs/devops.md (Docker, CI/CD 6 jobs, K8s-ready, observability stack, backup, scaling)
+- [x] docs/testing-strategy.md (pyramid, layers, coverage targets, ArchUnit rules, security, perf, CI, conventions)
+- [x] docs/ml-strategy.md (statistical MVP, Welford baseline, ML roadmap, data requirements, limitations)
+- [x] docs/pedagogical-guide.md (non-technical explanation, doctor analogy, data journey, ROI, glossary)
+- [x] docs/production-readiness-checklist.md (80+ items, maturity levels MVP/Pilot/Production, roadmap)
+- [x] docs/local-dev.md (Docker setup, profiles, port map, workflows, debugging, troubleshooting)
 - [x] docs/timeseries-storage.md (schema, aggregates, retention, GDPR)
 - [x] docs/signal-analysis.md (detection pipeline, algorithms, ML extension, thresholds)
 - [x] docs/risk-scoring.md (formula, factors, explainability, ML extension, trend/prediction)
 - [x] docs/alerting-service.md (lifecycle, deduplication, escalation, SLA, API, events)
 - [x] docs/maintenance.md (lifecycle, feedback loop, risk impact, API, events)
 - [x] docs/reporting.md (report types, PDF generation, secure download, signature, API, events)
+- [x] docs/notification.md (channels, routing, retry/backoff, deduplication, RGPD, templates, API)
+- [x] docs/api-gateway.md (routing, filters, security, rate limiting, header propagation, CORS, error masking)
+- [x] docs/observability.md (stack, actuator, business metrics, tracing, logging, alerts, dashboards, config)
 - [x] README per module (11 service READMEs)
 
 ### Per-Service Structure
@@ -278,7 +404,7 @@
 - [x] Signal analysis: hybrid detection (z-score, micro-arc, temperature, THD drift, exponential smoothing)
 - [x] ML-ready port: MachineLearningInferencePort + NoOp stub
 - [x] Risk scoring: weighted multi-factor formula, recency decay, repetition boost, ML-ready port
-- [ ] Remaining services: Flyway, JPA, REST, Kafka (alerting, notification, reporting, maintenance)
+- [x] All 10 services fully implemented: device, ingestion, signal-analysis, risk-scoring, alerting, notification, reporting, maintenance, identity, API gateway
 - [ ] Redis cache adapter (scoring service)
 - [ ] MapStruct mappers (entity <-> domain)
 - [ ] Global exception handlers (RFC 7807)
@@ -289,21 +415,30 @@
 - [ ] API Gateway JWT validation end-to-end
 - [ ] Full signal pipeline: MQTT -> Ingestion -> Kafka -> Analysis -> Scoring -> Alert -> Notification
 
-### Phase 3: Quality
-- [ ] Unit tests: domain models (all services)
-- [ ] Unit tests: use cases (mocked ports)
-- [ ] ArchUnit tests (hexagonal rules enforcement)
-- [ ] Integration tests with Testcontainers
-- [ ] Contract tests (Spring Cloud Contract)
-- [ ] JaCoCo coverage >= 80%
+### Phase 3: Quality (IMPLEMENTED)
+- [x] Unit tests: domain models (all services, 400+ tests total)
+- [x] Unit tests: use cases (mocked ports)
+- [x] ArchUnit tests: hexagonal rules per service (10 rules each, 9 services)
+- [x] ArchUnit tests: platform-wide (no cycles, no cross-context, naming conventions)
+- [x] Integration tests with Testcontainers (PostgreSQL, Kafka, Redis)
+- [x] Security tests (TenantSecurityTest, actuator protection, header sanitization)
+- [x] Performance smoke tests (ingestion throughput, risk scoring latency)
+- [x] JaCoCo: domain 90%, application 85%, adapters excluded from minimum
+- [x] JaCoCo exclusions: *Application.java, *Config.java, DTOs
+- [x] Spotless formatting (Palantir Java Format, enforced in CI)
+- [ ] Contract tests (Spring Cloud Contract) — planned Phase 5
 
 ### Phase 4: Production Readiness
-- [ ] Dockerfiles per service (multi-stage)
-- [ ] Docker Compose with all services (docker profile)
-- [ ] GitHub Actions CI/CD pipeline
-- [ ] Health checks and readiness probes
-- [ ] Distributed tracing (OpenTelemetry)
-- [ ] API documentation (SpringDoc OpenAPI)
+- [x] Dockerfiles per service (multi-stage, non-root, healthcheck)
+- [x] Docker Compose with all services (profiles: services, simulator, full)
+- [x] GitHub Actions CI/CD pipeline (6 jobs: build, integration-tests, coverage, security-scan, docker-build, code-quality)
+- [x] Health checks and readiness probes (Spring Boot Actuator on all services)
+- [x] Distributed tracing (OpenTelemetry via Micrometer bridge, OTLP HTTP)
+- [x] Observability stack (Prometheus + Grafana + Loki + OTEL Collector)
+- [x] Structured logging (JSON in prod, logstash-logback-encoder)
+- [x] Prometheus alerts (14 production rules)
+- [x] Grafana dashboards (3 provisioned: overview, ingestion, alerting)
+- [x] API documentation (comprehensive docs/api-documentation.md, SpringDoc integration planned)
 - [x] Rate limiting (Redis-based via API Gateway)
 - [x] Security hardening (CORS, CSP, HSTS, XSS, CSRF, rate limiting)
 - [x] Multi-tenancy via JWT tenant_id claim + TenantContext ThreadLocal

@@ -1,0 +1,170 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Service Health",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "count(up{job=~\"pyrosense-.*\"} == 1)",
+          "legendFormat": "Healthy"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "red" },
+              { "value": 8, "color": "yellow" },
+              { "value": 10, "color": "green" }
+            ]
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "title": "Telemetry Ingestion Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_telemetry_received_total[5m])",
+          "legendFormat": "Received/s"
+        },
+        {
+          "expr": "rate(pyrosense_telemetry_rejected_total[5m])",
+          "legendFormat": "Rejected/s"
+        }
+      ]
+    },
+    {
+      "title": "Anomalies Detected",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_anomalies_detected_total[5m])",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    },
+    {
+      "title": "Risk Score Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "pyrosense_risk_score_updated_total",
+          "legendFormat": "Updates"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(pyrosense_risk_score_value_bucket[5m]))",
+          "legendFormat": "P95 Score"
+        }
+      ]
+    },
+    {
+      "title": "Alerts Created",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_alerts_created_total[5m])",
+          "legendFormat": "{{severity}}"
+        },
+        {
+          "expr": "pyrosense_alerts_critical_active",
+          "legendFormat": "Active Critical"
+        }
+      ]
+    },
+    {
+      "title": "Notifications",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_notifications_sent_total[5m])",
+          "legendFormat": "Sent ({{channel}})"
+        },
+        {
+          "expr": "rate(pyrosense_notifications_failed_total[5m])",
+          "legendFormat": "Failed ({{channel}})"
+        }
+      ]
+    },
+    {
+      "title": "Devices Status",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "pyrosense_devices_offline_total",
+          "legendFormat": "Offline"
+        },
+        {
+          "expr": "pyrosense_devices_active_total",
+          "legendFormat": "Active"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Request Rate by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count[5m])) by (application)",
+          "legendFormat": "{{application}}"
+        }
+      ]
+    },
+    {
+      "title": "HTTP Error Rate (5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) by (application)",
+          "legendFormat": "{{application}}"
+        }
+      ]
+    },
+    {
+      "title": "JVM Heap Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\"} / jvm_memory_max_bytes{area=\"heap\"}",
+          "legendFormat": "{{application}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit" } }
+    },
+    {
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "targets": [
+        {
+          "expr": "sum(kafka_consumer_fetch_manager_records_lag) by (application, topic)",
+          "legendFormat": "{{application}} - {{topic}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["pyrosense", "overview"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "PyroSense Platform Overview",
+  "uid": "pyrosense-overview"
+}

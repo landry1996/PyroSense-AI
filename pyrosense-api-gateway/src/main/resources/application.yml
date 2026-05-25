@@ -9,7 +9,9 @@ spring:
             allowedOrigins: ${CORS_ORIGINS:http://localhost:3000}
             allowedMethods: GET,POST,PUT,PATCH,DELETE,OPTIONS
             allowedHeaders: "*"
+            exposedHeaders: X-Correlation-Id,X-RateLimit-Limit,X-RateLimit-Remaining
             allowCredentials: true
+            maxAge: 3600
   security:
     oauth2:
       resourceserver:
@@ -22,9 +24,49 @@ spring:
 
 server:
   port: 8080
+  netty:
+    max-initial-line-length: 8192
+    max-header-size: 16384
+
+pyrosense:
+  gateway:
+    max-payload-bytes: ${MAX_PAYLOAD_BYTES:1048576}
+  services:
+    identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+    device-url: ${DEVICE_SERVICE_URL:http://localhost:8082}
+    ingestion-url: ${INGESTION_SERVICE_URL:http://localhost:8083}
+    analysis-url: ${ANALYSIS_SERVICE_URL:http://localhost:8084}
+    scoring-url: ${SCORING_SERVICE_URL:http://localhost:8085}
+    alerting-url: ${ALERTING_SERVICE_URL:http://localhost:8086}
+    notification-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+    reporting-url: ${REPORTING_SERVICE_URL:http://localhost:8091}
+    maintenance-url: ${MAINTENANCE_SERVICE_URL:http://localhost:8089}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,gateway
+        include: health,info,metrics,prometheus,gateway
+  endpoint:
+    health:
+      show-details: when_authorized
+    gateway:
+      enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+logging:
+  level:
+    com.pyrosense.gateway: INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.security: WARN

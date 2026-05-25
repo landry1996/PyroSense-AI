@@ -1,0 +1,44 @@
+# Build outputs
+**/target/
+**/*.jar
+**/*.class
+
+# IDE
+**/.idea/
+**/.vscode/
+**/*.iml
+**/.classpath
+**/.project
+**/.settings/
+
+# OS
+**/.DS_Store
+**/Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+**/docker-compose*.yml
+**/.dockerignore
+**/Dockerfile
+
+# Logs
+**/*.log
+**/logs/
+
+# Secrets
+**/.env
+**/application-secret.yml
+
+# Docs
+docs/
+*.md
+!README.md
+
+# Tools (built separately)
+tools/
+
+# Infrastructure configs (mounted as volumes)
+infra/

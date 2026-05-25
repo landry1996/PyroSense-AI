@@ -3,13 +3,11 @@ package com.pyrosense.gateway.filter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.Objects;
 
 @Component
@@ -19,10 +17,10 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
     private static final int DEVICE_REQUESTS_PER_MINUTE = 120;
     private static final int AUTH_REQUESTS_PER_MINUTE = 10;
 
-    private final ReactiveStringRedisTemplate redisTemplate;
+    private final RateLimitStore store;
 
-    public RateLimitingFilter(ReactiveStringRedisTemplate redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public RateLimitingFilter(RateLimitStore store) {
+        this.store = store;
     }
 
     @Override
@@ -33,13 +31,7 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
 
         String key = "rate:" + clientIp + ":" + resolveBucket(path);
 
-        return redisTemplate.opsForValue().increment(key)
-                .flatMap(count -> {
-                    if (count == 1) {
-                        return redisTemplate.expire(key, Duration.ofMinutes(1)).thenReturn(count);
-                    }
-                    return Mono.just(count);
-                })
+        return store.increment(key)
                 .flatMap(count -> {
                     exchange.getResponse().getHeaders().add("X-RateLimit-Limit", String.valueOf(limit));
                     exchange.getResponse().getHeaders().add("X-RateLimit-Remaining",
@@ -64,13 +56,13 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
 
     private int resolveLimit(String path) {
         if (path.startsWith("/api/v1/auth")) return AUTH_REQUESTS_PER_MINUTE;
-        if (path.startsWith("/api/v1/signals") || path.startsWith("/api/v1/devices")) return DEVICE_REQUESTS_PER_MINUTE;
+        if (path.startsWith("/api/v1/ingestion") || path.startsWith("/api/v1/devices")) return DEVICE_REQUESTS_PER_MINUTE;
         return DEFAULT_REQUESTS_PER_MINUTE;
     }
 
     private String resolveBucket(String path) {
         if (path.startsWith("/api/v1/auth")) return "auth";
-        if (path.startsWith("/api/v1/signals")) return "ingestion";
+        if (path.startsWith("/api/v1/ingestion")) return "ingestion";
         return "default";
     }
 

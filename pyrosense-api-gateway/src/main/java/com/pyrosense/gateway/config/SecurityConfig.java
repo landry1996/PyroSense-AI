@@ -16,7 +16,6 @@ import org.springframework.security.web.server.header.XFrameOptionsServerHttpHea
 import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Configuration
@@ -37,8 +36,15 @@ public class SecurityConfig {
                         .cache(ServerHttpSecurity.HeaderSpec.CacheSpec::disable)
                 )
                 .authorizeExchange(auth -> auth
+                        // Health checks — public
                         .pathMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Device authentication — public (device validates via HMAC, not JWT)
                         .pathMatchers("/api/v1/auth/device/validate").permitAll()
+                        // Report download — token-gated, not JWT
+                        .pathMatchers("/api/v1/reports/*/download").permitAll()
+                        // Internal actuator endpoints — restricted
+                        .pathMatchers("/actuator/**").hasRole("ADMIN")
+                        // All other endpoints require authentication
                         .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -49,11 +55,11 @@ public class SecurityConfig {
 
     private Converter<Jwt, Mono<AbstractAuthenticationToken>> jwtAuthenticationConverter() {
         var converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(new PyroSenseReactiveGrantedAuthoritiesConverter());
+        converter.setJwtGrantedAuthoritiesConverter(new PyroSenseGrantedAuthoritiesConverter());
         return new ReactiveJwtAuthenticationConverterAdapter(converter);
     }
 
-    static class PyroSenseReactiveGrantedAuthoritiesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+    static class PyroSenseGrantedAuthoritiesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
         @Override
         @SuppressWarnings("unchecked")

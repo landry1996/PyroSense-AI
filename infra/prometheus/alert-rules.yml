@@ -1,5 +1,5 @@
 groups:
-  - name: pyrosense-platform-alerts
+  - name: pyrosense-service-health
     rules:
       - alert: ServiceDown
         expr: up == 0
@@ -20,23 +20,85 @@ groups:
           description: "JVM heap usage is {{ $value | humanizePercentage }}."
 
       - alert: HighErrorRate
-        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.1
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application) / sum(rate(http_server_requests_seconds_count[5m])) by (application) > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate on {{ $labels.job }}"
-          description: "More than 10% of requests are failing with 5xx errors."
+          summary: "High error rate on {{ $labels.application }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)."
 
-      - alert: NoSignalsIngested
-        expr: rate(pyrosense_signals_ingested_total[5m]) == 0
-        for: 10m
+      - alert: HighResponseLatency
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application)) > 2
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "No signals ingested in 10 minutes"
-          description: "The ingestion service has not received any signals for 10 minutes."
+          summary: "High P95 latency on {{ $labels.application }}"
+          description: "P95 response time is {{ $value }}s."
 
+  - name: pyrosense-ingestion
+    rules:
+      - alert: IngestionDown
+        expr: rate(pyrosense_telemetry_received_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No telemetry ingested for 10 minutes"
+          description: "The ingestion service has not received any telemetry for 10 minutes."
+
+      - alert: HighRejectionRate
+        expr: rate(pyrosense_telemetry_rejected_total[5m]) / rate(pyrosense_telemetry_received_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High telemetry rejection rate"
+          description: "Rejection rate is {{ $value | humanizePercentage }}."
+
+  - name: pyrosense-kafka
+    rules:
+      - alert: KafkaConsumerLagHigh
+        expr: sum(kafka_consumer_fetch_manager_records_lag) by (application, topic) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "{{ $labels.application }} has {{ $value }} messages lag on topic {{ $labels.topic }}."
+
+      - alert: KafkaConsumerLagCritical
+        expr: sum(kafka_consumer_fetch_manager_records_lag) by (application, topic) > 10000
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical Kafka consumer lag"
+          description: "{{ $labels.application }} has {{ $value }} messages lag on topic {{ $labels.topic }}."
+
+  - name: pyrosense-devices
+    rules:
+      - alert: DevicesOfflineHigh
+        expr: pyrosense_devices_offline_total > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many devices offline"
+          description: "{{ $value }} devices are currently offline."
+
+      - alert: DeviceOfflineCritical
+        expr: pyrosense_devices_offline_total > 50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical number of devices offline"
+          description: "{{ $value }} devices are offline - possible infrastructure issue."
+
+  - name: pyrosense-risk-alerting
+    rules:
       - alert: HighRiskScore
         expr: pyrosense_risk_score_current > 80
         for: 2m
@@ -44,4 +106,33 @@ groups:
           severity: critical
         annotations:
           summary: "Critical risk score detected"
-          description: "Installation {{ $labels.installation_id }} has a risk score of {{ $value }}."
+          description: "Device {{ $labels.device_id }} has a risk score of {{ $value }}."
+
+      - alert: CriticalAlertsActive
+        expr: pyrosense_alerts_critical_active > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Many critical alerts active"
+          description: "{{ $value }} critical alerts are currently active."
+
+  - name: pyrosense-notifications
+    rules:
+      - alert: NotificationFailureRateHigh
+        expr: rate(pyrosense_notifications_failed_total[5m]) / (rate(pyrosense_notifications_sent_total[5m]) + rate(pyrosense_notifications_failed_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High notification failure rate"
+          description: "Notification failure rate is {{ $value | humanizePercentage }}."
+
+      - alert: NotificationsBacklog
+        expr: pyrosense_notifications_retrying > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Notification retry backlog growing"
+          description: "{{ $value }} notifications are in retry state."
