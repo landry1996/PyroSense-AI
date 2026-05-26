@@ -459,13 +459,38 @@
 - [x] Connection indicator (wifi/wifi_off)
 - [x] Dashboard auto-refresh on WebSocket events
 
-#### Ecarts Residuels vs Spec Cible (~4h30 effort)
-- [ ] Alertes: filtre par batiment (MatSelect buildingId)
-- [ ] Alertes: action "Assigner" sur detail (POST /alerts/:id/assign)
-- [ ] Building detail: onglet Tableaux electriques (groupement par panelId)
-- [ ] Settings: onglet Preferences notification (reprendre depuis notification-list)
-- [ ] Mode SUPPORT_READONLY (masquer actions, badge lecture seule)
-- [ ] Building list: badge highestAlertSeverity (enrichir BuildingResponse backend)
+#### Ecarts Residuels vs Spec Cible — DONE (commit 221c6cf)
+- [x] Alertes: filtre par batiment (MatSelect buildingId)
+- [x] Alertes: action "Assigner" sur detail (POST /alerts/:id/assign)
+- [x] Building detail: onglet Tableaux electriques (groupement par panelId)
+- [x] Settings: onglet Preferences notification (channels, severite, heures calmes, digest)
+- [x] Mode SUPPORT_READONLY (masquer actions via auth.isReadOnly())
+- [x] Building list: badge highestAlertSeverity sur cartes
+
+### Phase 8: Dashboard Query API Backend (pyrosense-dashboard-service)
+
+#### Service complet — DONE (23 tests passing)
+- [x] Module Maven enregistre dans parent POM (port 8088)
+- [x] Architecture hexagonale: domain/application/adapter/config
+- [x] Domain models: DashboardOverview, RiskyBuilding, RiskTrendPoint, RecentAlert, PriorityIntervention, DeviceHealthSummary
+- [x] Ports in: 6 query interfaces (GetDashboardOverview, GetRiskyBuildings, GetRiskTrend, GetRecentAlerts, GetPriorityInterventions, GetDeviceHealth)
+- [x] Ports out: DashboardReadModelPort, DashboardCachePort
+- [x] Use cases: 6 services avec cache-aside pattern (Redis TTL configurable)
+- [x] REST controller: GET /api/v1/dashboard/{overview,risky-buildings,risk-trend,recent-alerts,priority-interventions,device-health}
+- [x] Tenant isolation: TenantContext.require() + JWT tenant_id
+- [x] Role-based access: TENANT_ADMIN, PROPERTY_MANAGER, ELECTRICIAN, SUPPORT_READONLY, PLATFORM_ADMIN
+- [x] ELECTRICIAN scope: interventions filtrées par assignee
+- [x] JdbcDashboardReadModel: read-model projections avec requetes SQL optimisees
+- [x] RedisDashboardCache: cache serialization JSON avec TTL
+- [x] DashboardCacheInvalidationListener: Kafka consumer (5 topics) pour invalidation
+- [x] SecurityConfig: OAuth2 JWT + TenantContext filter + method security
+- [x] Flyway V001: tables buildings, devices, alerts, interventions, dashboard_risk_trend avec index
+- [x] DashboardProperties: TTL configurable (overview 30s, buildings 60s, trend 5min, health 60s)
+- [x] Tests unitaires: GetDashboardOverviewServiceTest, GetRiskyBuildingsServiceTest (5 tests)
+- [x] Tests REST: DashboardControllerTest (6 tests), DashboardSecurityTest (6 tests)
+- [x] Tests architecture: ArchitectureTest (6 tests ArchUnit)
+- [x] Integration test: JdbcDashboardReadModelIntegrationTest (Testcontainers PostgreSQL, 9 tests)
+- [x] Documentation: docs/dashboard-api.md
 
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 

@@ -30,6 +30,7 @@
         <module>pyrosense-reporting-service</module>
         <module>pyrosense-notification-service</module>
         <module>pyrosense-maintenance-service</module>
+        <module>pyrosense-dashboard-service</module>
         <module>pyrosense-api-gateway</module>
     </modules>
 
