@@ -57,3 +57,22 @@ CREATE TABLE audit_log (
 );
 
 CREATE INDEX idx_audit_log_tenant_time ON audit_log(tenant_id, timestamp);
+
+CREATE TABLE tenant_settings (
+    tenant_id UUID PRIMARY KEY REFERENCES tenants(id),
+    settings TEXT NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE emergency_contacts (
+    id UUID PRIMARY KEY,
+    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255),
+    role VARCHAR(100) NOT NULL,
+    priority INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_emergency_contacts_tenant ON emergency_contacts(tenant_id, priority);

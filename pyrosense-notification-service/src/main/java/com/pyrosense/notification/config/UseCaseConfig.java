@@ -1,7 +1,9 @@
 package com.pyrosense.notification.config;
 
 import com.pyrosense.notification.application.port.out.*;
+import com.pyrosense.notification.application.port.out.NotificationPreferencesRepository;
 import com.pyrosense.notification.application.usecase.*;
+import com.pyrosense.notification.application.usecase.ManageNotificationPreferencesService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -34,5 +36,10 @@ public class UseCaseConfig {
                                                               RecipientResolverPort recipientResolver,
                                                               NotificationDispatcher dispatcher) {
         return new RetryNotificationService(repository, recipientResolver, dispatcher);
+    }
+
+    @Bean
+    public ManageNotificationPreferencesService manageNotificationPreferencesService(NotificationPreferencesRepository repository) {
+        return new ManageNotificationPreferencesService(repository);
     }
 }

@@ -2,10 +2,13 @@ package com.pyrosense.identity.config;
 
 import com.pyrosense.identity.application.port.out.AuditLogRepository;
 import com.pyrosense.identity.application.port.out.DeviceCredentialRepository;
+import com.pyrosense.identity.application.port.out.EmergencyContactRepository;
 import com.pyrosense.identity.application.port.out.TenantRepository;
+import com.pyrosense.identity.application.port.out.TenantSettingsRepository;
 import com.pyrosense.identity.application.port.out.UserRepository;
 import com.pyrosense.identity.application.usecase.ManageDeviceCredentialService;
 import com.pyrosense.identity.application.usecase.ManageTenantService;
+import com.pyrosense.identity.application.usecase.ManageTenantSettingsService;
 import com.pyrosense.identity.application.usecase.RegisterUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,5 +31,11 @@ public class UseCaseConfig {
     @Bean
     public ManageDeviceCredentialService manageDeviceCredentialService(DeviceCredentialRepository repository) {
         return new ManageDeviceCredentialService(repository);
+    }
+
+    @Bean
+    public ManageTenantSettingsService manageTenantSettingsService(TenantSettingsRepository settingsRepo,
+                                                                    EmergencyContactRepository contactRepo) {
+        return new ManageTenantSettingsService(settingsRepo, contactRepo);
     }
 }
