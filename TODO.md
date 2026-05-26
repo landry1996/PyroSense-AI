@@ -227,28 +227,37 @@
 - [x] Context load test (embedded Kafka)
 - [x] Documentation: docs/maintenance-service.md
 
-### Reporting Service (FULLY IMPLEMENTED - 41 tests passing)
-- [x] Domain model: Report aggregate (state machine PENDING → GENERATING → GENERATED/FAILED), ReportType (6 types), ReportStatus, ReportMetadata, ReportSignature (SHA-256), DownloadToken (SecureRandom 32-byte, 15min TTL)
+### Reporting Service (FULLY IMPLEMENTED - 79 tests passing)
+- [x] Domain model: Report aggregate (state machine REQUESTED → GENERATING → GENERATED/FAILED/EXPIRED), ReportType (6 types), ReportStatus (5 states), ReportMetadata (enriched), ReportSignature (SHA-256), DownloadToken (SecureRandom 32-byte, 15min TTL), ReportPeriod, ReportRecipient, ReportFileReference
 - [x] Unique report numbering: {PREFIX}-{YYYYMM}-{SEQUENCE:05d} (e.g., MH-202503-00042)
 - [x] Logical signature: SHA-256 hash computed on PDF content, stored with report
 - [x] Secure download: single-use expiring tokens (15min TTL, invalidated after use)
+- [x] Report expiry: 90-day TTL, content purged on expiration, isExpired() check
 - [x] Domain events: ReportGeneratedEvent, ComplianceCertificateGeneratedEvent
-- [x] Ports in: GenerateReportUseCase, GetReportQuery (findById/Tenant/Type/Building, createDownloadToken, findByDownloadToken)
-- [x] Ports out: ReportRepositoryPort, ReportRendererPort, ReportDataProviderPort, ReportEventPublisherPort, DownloadTokenStorePort
-- [x] Use case implementations: GenerateReportService (orchestrates data → render → persist → events), GetReportService (queries + token management)
-- [x] PDF renderer: OpenPdfReportRenderer (ReportRendererPort adapter, no business logic in renderer)
-- [x] REST API: POST /reports/monthly, GET /{id}, GET /{id}/download-token, GET /{id}/download?token=, GET /reports?tenantId&type, GET /building/{id}
-- [x] Security: JWT + TenantContext, download endpoint public (token-gated), insurer access restricted to isInsurerAccessible reports
-- [x] JDBC persistence: JdbcReportRepository with JSONB metadata
+- [x] Ports in: GenerateReportUseCase, GetReportQuery, RequestReportUseCase (4 dedicated commands: MonthlyHealth, MonitoringCertificate, CriticalAlert, Intervention)
+- [x] Ports out: ReportRepositoryPort, ReportRendererPort, ReportDataProviderPort, ReportEventPublisherPort, DownloadTokenStorePort, FileStoragePort, ReportAuditLogPort
+- [x] Use case implementations: GenerateReportService (orchestrates data → render → persist → events), GetReportService (queries + token management), RequestReportService (dedicated report requests + file storage + audit)
+- [x] PDF renderer: OpenPdfReportRenderer (ReportRendererPort adapter, no business logic in renderer, enriched sections)
+- [x] REST API: POST /monthly-health, POST /monitoring-certificate, POST /critical-alert/{alertId}, POST /intervention/{interventionId}, POST /monthly (legacy), GET /{id}, GET /{id}/download-token, GET /{id}/download?token=, GET /reports?type, GET /building/{id}
+- [x] Security: JWT + TenantContext, download endpoint public (token-gated), insurer access restricted to isInsurerAccessible + not expired
+- [x] GlobalExceptionHandler: AccessDeniedException → 403 (prevents catch-all from swallowing)
+- [x] JDBC persistence: JdbcReportRepository with JSONB metadata, EXPIRED status support
 - [x] InMemoryDownloadTokenStore (ConcurrentHashMap, thread-safe)
-- [x] StubReportDataProvider (MVP placeholder, to be replaced by real cross-service data)
+- [x] LocalFileStorageAdapter (local filesystem, S3-compatible port for prod)
+- [x] LoggingReportAuditLogAdapter (structured audit logging)
+- [x] StubReportDataProvider (enriched MVP data: offline sensors, risk evolution, top risk buildings, ROI summary)
 - [x] Kafka producer: reporting-events topic
 - [x] Flyway V001: reports table with indexes (tenant, building, type, status)
-- [x] Unit tests: 12 ReportTest, 7 DownloadTokenTest, 4 ReportSignatureTest, 5 GenerateReportServiceTest, 8 GetReportServiceTest
-- [x] Integration tests: 4 OpenPdfReportRendererTest (real PDF generation verification)
+- [x] Flyway V002: expires_at, source_alert_id, source_intervention_id, file storage columns, requester info
+- [x] Monthly report content: période, capteurs actifs/offline, score moyen, alertes par sévérité, interventions créées/complétées, défauts confirmés, faux positifs, bâtiments les plus à risque, recommandations, évolution du risque, synthèse ROI
+- [x] Certificate content: bâtiment, capteurs, taux disponibilité, statut monitoring, signature logique, numéro unique
+- [x] Unit tests: 12 ReportTest, 7 DownloadTokenTest, 4 ReportSignatureTest, 4 ReportPeriodTest, 4 ReportExpiryTest
+- [x] Service tests: 5 GenerateReportServiceTest, 8 GetReportServiceTest, 5 RequestReportServiceTest
+- [x] Adapter tests: 4 OpenPdfReportRendererTest, 3 LocalFileStorageAdapterTest
+- [x] Security tests: 7 ReportControllerSecurityTest (role-based access)
 - [x] ArchUnit tests: 10 rules (hexagonal enforcement)
 - [x] Context load test (embedded Kafka)
-- [x] Documentation: docs/reporting.md
+- [x] Documentation: docs/reporting-service.md
 
 ### Notification Service (FULLY IMPLEMENTED - 48 tests passing)
 - [x] Domain model: Notification aggregate (retry state machine PENDING → SENT / RETRYING → FAILED), NotificationChannel (5: EMAIL, SMS, PUSH, WEBHOOK, DASHBOARD), NotificationStatus, RecipientType (4), DeduplicationKey

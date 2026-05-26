@@ -64,8 +64,10 @@ class OpenPdfReportRendererTest {
     private ReportRenderRequest createRequest(ReportType type) {
         ReportMetadata metadata = new ReportMetadata(
                 "Bâtiment Principal", "45 Avenue de la République, 75011 Paris",
-                15, 42.5, 12, 3, 7, 5,
-                List.of("Vérifier le circuit B3", "Planifier maintenance préventive", "Remplacer capteur #7")
+                15, 2, 42.5, 12, 3, 7, 5, 4, 1, -3.5,
+                List.of("Bâtiment A - Score 72"),
+                List.of("Vérifier le circuit B3", "Planifier maintenance préventive", "Remplacer capteur #7"),
+                "2 incidents évités"
         );
         return new ReportRenderRequest(
                 "MH-202501-00001", type, "Bâtiment Principal",

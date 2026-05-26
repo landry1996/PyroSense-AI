@@ -20,16 +20,22 @@ public class StubReportDataProvider implements ReportDataProviderPort {
                 "Bâtiment " + buildingId.value().toString().substring(0, 8),
                 "123 Rue de la Sécurité, 75001 Paris",
                 12,
+                1,
                 35.5,
                 8,
                 2,
                 5,
                 4,
+                3,
+                1,
+                -5.2,
+                List.of("Bâtiment A - Score 72", "Bâtiment B - Score 65"),
                 List.of(
                         "Vérifier le câblage du tableau principal",
                         "Planifier la maintenance préventive du circuit B3",
                         "Remplacer les capteurs de température vieillissants"
-                )
+                ),
+                "3 incidents évités estimés à 45,000€ d'économies"
         );
     }
 }

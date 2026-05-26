@@ -3,6 +3,8 @@ package com.pyrosense.reporting.adapter.in.rest;
 import com.pyrosense.reporting.application.port.in.GenerateReportUseCase;
 import com.pyrosense.reporting.application.port.in.GenerateReportUseCase.GenerateReportCommand;
 import com.pyrosense.reporting.application.port.in.GetReportQuery;
+import com.pyrosense.reporting.application.port.in.RequestReportUseCase;
+import com.pyrosense.reporting.application.port.in.RequestReportUseCase.*;
 import com.pyrosense.reporting.domain.model.Report;
 import com.pyrosense.reporting.domain.model.ReportType;
 import com.pyrosense.shared.id.BuildingId;
@@ -28,10 +30,14 @@ public class ReportController {
 
     private final GenerateReportUseCase generateUseCase;
     private final GetReportQuery queryUseCase;
+    private final RequestReportUseCase requestUseCase;
 
-    public ReportController(GenerateReportUseCase generateUseCase, GetReportQuery queryUseCase) {
+    public ReportController(GenerateReportUseCase generateUseCase,
+                            GetReportQuery queryUseCase,
+                            RequestReportUseCase requestUseCase) {
         this.generateUseCase = generateUseCase;
         this.queryUseCase = queryUseCase;
+        this.requestUseCase = requestUseCase;
     }
 
     @PostMapping("/monthly")
@@ -45,6 +51,54 @@ public class ReportController {
                 request.periodEnd()
         );
         Report report = generateUseCase.generate(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(report));
+    }
+
+    @PostMapping("/monthly-health")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    public ResponseEntity<ReportResponse> requestMonthlyHealth(@Valid @RequestBody PeriodReportRequest request) {
+        var command = new MonthlyHealthCommand(
+                new TenantId(UUID.fromString(request.tenantId())),
+                new BuildingId(UUID.fromString(request.buildingId())),
+                request.periodStart(), request.periodEnd());
+        Report report = requestUseCase.requestMonthlyHealth(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(report));
+    }
+
+    @PostMapping("/monitoring-certificate")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    public ResponseEntity<ReportResponse> requestMonitoringCertificate(@Valid @RequestBody PeriodReportRequest request) {
+        var command = new MonitoringCertificateCommand(
+                new TenantId(UUID.fromString(request.tenantId())),
+                new BuildingId(UUID.fromString(request.buildingId())),
+                request.periodStart(), request.periodEnd());
+        Report report = requestUseCase.requestMonitoringCertificate(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(report));
+    }
+
+    @PostMapping("/critical-alert/{alertId}")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    public ResponseEntity<ReportResponse> requestCriticalAlertReport(
+            @PathVariable UUID alertId,
+            @Valid @RequestBody PeriodReportRequest request) {
+        var command = new CriticalAlertReportCommand(
+                new TenantId(UUID.fromString(request.tenantId())),
+                new BuildingId(UUID.fromString(request.buildingId())),
+                alertId, request.periodStart(), request.periodEnd());
+        Report report = requestUseCase.requestCriticalAlertReport(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(report));
+    }
+
+    @PostMapping("/intervention/{interventionId}")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    public ResponseEntity<ReportResponse> requestInterventionReport(
+            @PathVariable UUID interventionId,
+            @Valid @RequestBody PeriodReportRequest request) {
+        var command = new InterventionReportCommand(
+                new TenantId(UUID.fromString(request.tenantId())),
+                new BuildingId(UUID.fromString(request.buildingId())),
+                interventionId, request.periodStart(), request.periodEnd());
+        Report report = requestUseCase.requestInterventionReport(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(report));
     }
 
@@ -151,6 +205,13 @@ public class ReportController {
             @NotBlank String tenantId,
             @NotBlank String buildingId,
             @NotBlank String type,
+            @NotNull Instant periodStart,
+            @NotNull Instant periodEnd
+    ) {}
+
+    record PeriodReportRequest(
+            @NotBlank String tenantId,
+            @NotBlank String buildingId,
             @NotNull Instant periodStart,
             @NotNull Instant periodEnd
     ) {}

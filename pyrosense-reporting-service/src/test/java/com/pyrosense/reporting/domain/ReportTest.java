@@ -19,11 +19,11 @@ class ReportTest {
     private static final Instant PERIOD_END = Instant.parse("2025-01-31T23:59:59Z");
 
     @Test
-    void shouldCreateReportWithPendingStatus() {
+    void shouldCreateReportWithRequestedStatus() {
         Report report = new Report(UUID.randomUUID(), TENANT, BUILDING,
                 ReportType.MONTHLY_HEALTH, PERIOD_START, PERIOD_END);
 
-        assertEquals(ReportStatus.PENDING, report.getStatus());
+        assertEquals(ReportStatus.REQUESTED, report.getStatus());
         assertNotNull(report.getReportNumber());
         assertTrue(report.getReportNumber().startsWith("MH-"));
         assertNotNull(report.getCreatedAt());

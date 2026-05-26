@@ -81,11 +81,15 @@ public class OpenPdfReportRenderer implements ReportRendererPort {
         addTableRow(table, "Bâtiment", metadata.buildingName());
         addTableRow(table, "Adresse", metadata.buildingAddress());
         addTableRow(table, "Capteurs actifs", String.valueOf(metadata.sensorCount()));
+        addTableRow(table, "Capteurs hors ligne", String.valueOf(metadata.offlineSensorCount()));
         addTableRow(table, "Score de risque moyen", "%.1f / 100".formatted(metadata.averageRiskScore()));
         addTableRow(table, "Alertes totales", String.valueOf(metadata.alertCount()));
         addTableRow(table, "Alertes critiques", String.valueOf(metadata.criticalAlertCount()));
         addTableRow(table, "Interventions", String.valueOf(metadata.interventionCount()));
         addTableRow(table, "Interventions résolues", String.valueOf(metadata.resolvedInterventionCount()));
+        addTableRow(table, "Défauts confirmés", String.valueOf(metadata.confirmedDefects()));
+        addTableRow(table, "Faux positifs", String.valueOf(metadata.falsePositives()));
+        addTableRow(table, "Évolution du risque", "%.1f%%".formatted(metadata.riskEvolutionPercent()));
 
         document.add(table);
     }
@@ -109,6 +113,15 @@ public class OpenPdfReportRenderer implements ReportRendererPort {
         sectionTitle.setSpacingAfter(10);
         document.add(sectionTitle);
 
+        if (metadata.topRiskBuildings() != null && !metadata.topRiskBuildings().isEmpty()) {
+            Paragraph riskTitle = new Paragraph("Bâtiments les plus à risque :", HEADER_FONT);
+            riskTitle.setSpacingBefore(10);
+            document.add(riskTitle);
+            for (String building : metadata.topRiskBuildings()) {
+                document.add(new Paragraph("• " + building, BODY_FONT));
+            }
+        }
+
         if (metadata.recommendations() != null && !metadata.recommendations().isEmpty()) {
             Paragraph recoTitle = new Paragraph("Recommandations :", HEADER_FONT);
             recoTitle.setSpacingBefore(10);
@@ -116,6 +129,13 @@ public class OpenPdfReportRenderer implements ReportRendererPort {
             for (String reco : metadata.recommendations()) {
                 document.add(new Paragraph("• " + reco, BODY_FONT));
             }
+        }
+
+        if (metadata.roiSummary() != null) {
+            Paragraph roiTitle = new Paragraph("Synthèse ROI :", HEADER_FONT);
+            roiTitle.setSpacingBefore(10);
+            document.add(roiTitle);
+            document.add(new Paragraph(metadata.roiSummary(), BODY_FONT));
         }
     }
 
@@ -130,6 +150,25 @@ public class OpenPdfReportRenderer implements ReportRendererPort {
                         + "pendant la période du %s au %s.".formatted(
                         DATE_FMT.format(request.periodStart()), DATE_FMT.format(request.periodEnd())),
                 BODY_FONT));
+
+        ReportMetadata metadata = request.metadata();
+        PdfPTable table = new PdfPTable(2);
+        table.setWidthPercentage(100);
+        table.setSpacingBefore(10);
+        addTableRow(table, "Capteurs actifs", String.valueOf(metadata.sensorCount()));
+        addTableRow(table, "Capteurs hors ligne", String.valueOf(metadata.offlineSensorCount()));
+        int total = metadata.sensorCount() + metadata.offlineSensorCount();
+        double availability = total > 0 ? (metadata.sensorCount() * 100.0 / total) : 100.0;
+        addTableRow(table, "Taux de disponibilité", "%.1f%%".formatted(availability));
+        addTableRow(table, "Statut monitoring", metadata.offlineSensorCount() == 0 ? "ACTIF" : "PARTIELLEMENT DÉGRADÉ");
+        addTableRow(table, "Numéro attestation", request.reportNumber());
+        document.add(table);
+
+        Paragraph signParagraph = new Paragraph(
+                "Signature logique : Rapport N° %s — Généré automatiquement".formatted(request.reportNumber()),
+                new Font(Font.HELVETICA, 9, Font.ITALIC));
+        signParagraph.setSpacingBefore(15);
+        document.add(signParagraph);
     }
 
     private void addCriticalAlertContent(Document document, ReportMetadata metadata) throws DocumentException {

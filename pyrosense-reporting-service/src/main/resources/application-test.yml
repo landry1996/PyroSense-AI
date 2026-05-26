@@ -11,5 +11,4 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/pyrosense
-          jwk-set-uri: http://localhost:8180/realms/pyrosense/protocol/openid-connect/certs
+          public-key-location: classpath:test-public-key.pem

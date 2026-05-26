@@ -2,12 +2,17 @@ package com.pyrosense.reporting.domain.model;
 
 public enum ReportStatus {
 
-    PENDING,
+    REQUESTED,
     GENERATING,
     GENERATED,
-    FAILED;
+    FAILED,
+    EXPIRED;
 
     public boolean isAvailableForDownload() {
         return this == GENERATED;
+    }
+
+    public boolean isTerminal() {
+        return this == GENERATED || this == FAILED || this == EXPIRED;
     }
 }

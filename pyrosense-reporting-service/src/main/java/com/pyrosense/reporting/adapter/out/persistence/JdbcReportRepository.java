@@ -124,7 +124,7 @@ public class JdbcReportRepository implements ReportRepositoryPort {
             Report report = new Report(id, tenantId, buildingId, type, periodStart, periodEnd);
 
             String status = rs.getString("status");
-            if ("GENERATING".equals(status) || "GENERATED".equals(status) || "FAILED".equals(status)) {
+            if ("GENERATING".equals(status) || "GENERATED".equals(status) || "FAILED".equals(status) || "EXPIRED".equals(status)) {
                 report.startGeneration();
             }
 
@@ -139,6 +139,10 @@ public class JdbcReportRepository implements ReportRepositoryPort {
 
             if ("FAILED".equals(status)) {
                 report.markFailed();
+            }
+
+            if ("EXPIRED".equals(status)) {
+                report.markExpired();
             }
 
             return report;

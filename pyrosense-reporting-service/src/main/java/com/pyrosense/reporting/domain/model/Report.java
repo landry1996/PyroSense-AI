@@ -4,6 +4,7 @@ import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.util.ClockProvider;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -14,21 +15,26 @@ import java.util.concurrent.atomic.AtomicLong;
 public class Report {
 
     private static final AtomicLong SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final Duration DEFAULT_EXPIRY = Duration.ofDays(90);
 
     private final UUID id;
     private final String reportNumber;
     private final TenantId tenantId;
     private final BuildingId buildingId;
     private final ReportType type;
-    private final Instant periodStart;
-    private final Instant periodEnd;
+    private final ReportPeriod period;
     private ReportStatus status;
     private ReportMetadata metadata;
     private ReportSignature signature;
+    private ReportFileReference fileReference;
     private byte[] content;
     private String fileName;
     private final Instant createdAt;
     private Instant generatedAt;
+    private Instant expiresAt;
+    private UUID sourceAlertId;
+    private UUID sourceInterventionId;
+    private ReportRecipient requestedBy;
 
     public Report(UUID id, TenantId tenantId, BuildingId buildingId, ReportType type,
                   Instant periodStart, Instant periodEnd) {
@@ -36,11 +42,11 @@ public class Report {
         this.tenantId = Objects.requireNonNull(tenantId);
         this.buildingId = Objects.requireNonNull(buildingId);
         this.type = Objects.requireNonNull(type);
-        this.periodStart = Objects.requireNonNull(periodStart);
-        this.periodEnd = Objects.requireNonNull(periodEnd);
-        this.status = ReportStatus.PENDING;
+        this.period = new ReportPeriod(periodStart, periodEnd);
+        this.status = ReportStatus.REQUESTED;
         this.createdAt = ClockProvider.now();
         this.reportNumber = generateReportNumber(type);
+        this.expiresAt = this.createdAt.plus(DEFAULT_EXPIRY);
     }
 
     public void startGeneration() {
@@ -56,19 +62,35 @@ public class Report {
         this.status = ReportStatus.GENERATED;
         this.generatedAt = ClockProvider.now();
         this.fileName = buildFileName();
+        this.expiresAt = this.generatedAt.plus(DEFAULT_EXPIRY);
     }
 
     public void markFailed() {
         this.status = ReportStatus.FAILED;
     }
 
-    public boolean isAccessibleByInsurer() {
-        return type.isInsurerAccessible() && status.isAvailableForDownload();
+    public void markExpired() {
+        this.status = ReportStatus.EXPIRED;
+        this.content = null;
     }
+
+    public boolean isExpired() {
+        return status == ReportStatus.EXPIRED
+                || (expiresAt != null && ClockProvider.now().isAfter(expiresAt) && status == ReportStatus.GENERATED);
+    }
+
+    public boolean isAccessibleByInsurer() {
+        return type.isInsurerAccessible() && status.isAvailableForDownload() && !isExpired();
+    }
+
+    public void setSourceAlertId(UUID alertId) { this.sourceAlertId = alertId; }
+    public void setSourceInterventionId(UUID interventionId) { this.sourceInterventionId = interventionId; }
+    public void setRequestedBy(ReportRecipient recipient) { this.requestedBy = recipient; }
+    public void setFileReference(ReportFileReference ref) { this.fileReference = ref; }
 
     private String buildFileName() {
         String date = DateTimeFormatter.BASIC_ISO_DATE.format(
-                LocalDate.ofInstant(periodEnd, java.time.ZoneOffset.UTC));
+                LocalDate.ofInstant(period.end(), java.time.ZoneOffset.UTC));
         return "pyrosense_%s_%s_%s.pdf".formatted(
                 type.name().toLowerCase(), reportNumber, date);
     }
@@ -87,19 +109,24 @@ public class Report {
                 SEQUENCE.incrementAndGet() % 100000);
     }
 
-    // Getters
     public UUID getId() { return id; }
     public String getReportNumber() { return reportNumber; }
     public TenantId getTenantId() { return tenantId; }
     public BuildingId getBuildingId() { return buildingId; }
     public ReportType getType() { return type; }
-    public Instant getPeriodStart() { return periodStart; }
-    public Instant getPeriodEnd() { return periodEnd; }
+    public ReportPeriod getPeriod() { return period; }
+    public Instant getPeriodStart() { return period.start(); }
+    public Instant getPeriodEnd() { return period.end(); }
     public ReportStatus getStatus() { return status; }
     public ReportMetadata getMetadata() { return metadata; }
     public ReportSignature getSignature() { return signature; }
+    public ReportFileReference getFileReference() { return fileReference; }
     public byte[] getContent() { return content; }
     public String getFileName() { return fileName; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getGeneratedAt() { return generatedAt; }
+    public Instant getExpiresAt() { return expiresAt; }
+    public UUID getSourceAlertId() { return sourceAlertId; }
+    public UUID getSourceInterventionId() { return sourceInterventionId; }
+    public ReportRecipient getRequestedBy() { return requestedBy; }
 }
