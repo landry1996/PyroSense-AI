@@ -684,6 +684,47 @@
 #### Documentation — DONE
 - [x] docs/pdf-templates.md (architecture, sections, design, legal, retrocompatibilite, tests)
 
+### Phase 13: Templates de Notification (pyrosense-notification-service)
+
+#### Architecture — DONE
+- [x] NotificationTemplateCode enum (9 codes: ALERT_WARNING, ALERT_CRITICAL, CRITICAL_RISK_DETECTED, INTERVENTION_CREATED/ASSIGNED/COMPLETED, REPORT_GENERATED, DEVICE_OFFLINE, DEVICE_BACK_ONLINE)
+- [x] NotificationPriority enum (LOW, MEDIUM, HIGH, URGENT)
+- [x] NotificationTemplateDefinition record (4 channel contents, priority, CTA, privacy rules, required variables, missing variable detection)
+- [x] NotificationTemplateRegistry (registre statique des 9 templates complets)
+- [x] TemplateRendererPort enrichi (API channel-aware + backward-compatible legacy API)
+- [x] DefaultTemplateRenderer (impl. substitution {var}, delegation au registre pour API typee)
+
+#### 9 Templates complets (4 canaux chacun) — DONE
+- [x] ALERT_WARNING: priorite MEDIUM, ton informatif, action sous 48h
+- [x] ALERT_CRITICAL: priorite URGENT, ton calme, pas de panique, professionnel qualifie, pas de donnees brutes, pas de garantie incendie
+- [x] CRITICAL_RISK_DETECTED: priorite URGENT, score presente comme estimation probabiliste
+- [x] INTERVENTION_CREATED: priorite MEDIUM, information de suivi
+- [x] INTERVENTION_ASSIGNED: priorite HIGH, notification electricien
+- [x] INTERVENTION_COMPLETED: priorite LOW, rapport disponible
+- [x] REPORT_GENERATED: priorite LOW, lien telechargement
+- [x] DEVICE_OFFLINE: priorite HIGH, zone non surveillee, verifier connectivite
+- [x] DEVICE_BACK_ONLINE: priorite LOW, surveillance retablie, aucune action
+
+#### Regles de confidentialite — DONE
+- [x] NO_RAW_ELECTRICAL_DATA (tous les templates)
+- [x] NO_GUARANTEE_FIRE_PREDICTION (CRITICAL, RISK)
+- [x] NO_EXACT_LOCATION (CRITICAL, RISK, DEVICE_OFFLINE)
+- [x] NO_PERSONAL_INFO_IN_PUSH (INTERVENTION_ASSIGNED)
+- [x] MASK_DEVICE_ID_IN_SMS (DEVICE_OFFLINE, DEVICE_BACK_ONLINE)
+
+#### Evenement #9 — DONE
+- [x] DeviceBackOnlineCommand (ProcessNotificationEventUseCase)
+- [x] processDeviceBackOnline() handler (ProcessNotificationEventService)
+- [x] KafkaAlertEventListener: "device.back.online" event type routing
+
+#### Tests — DONE (159 tests total, 0 failures)
+- [x] NotificationTemplateRegistryTest (64 tests: tous les codes ont template, 4 canaux, priorite, CTA, privacy, variables requises, rendu, variables manquantes, conformite editoriale CRITICAL, SMS ≤160 chars, dashboard ≤200 chars)
+- [x] DefaultTemplateRendererTest (23 tests: legacy API, channel-aware API, tous codes/canaux, email > SMS, disclaimer CRITICAL)
+- [x] NotificationTemplateTest (6 tests pre-existants: severity mapping, rendu)
+
+#### Documentation — DONE
+- [x] docs/notification-templates.md (canaux, 9 templates, regles editoriales, privacy, variables, tests, roadmap)
+
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 
 #### Mois 1-3 — Prototype Labo

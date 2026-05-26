@@ -164,6 +164,24 @@ public class ProcessNotificationEventService implements ProcessNotificationEvent
                 "deviceId=%s building=%s".formatted(command.deviceId(), command.buildingId()));
     }
 
+    @Override
+    public void processDeviceBackOnline(DeviceBackOnlineCommand command) {
+        List<Recipient> recipients = recipientResolver.resolve(
+                command.tenantId(), List.of(RecipientType.PROPERTY_MANAGER, RecipientType.TENANT_ADMIN));
+
+        String subject = "Capteur reconnecté — %s".formatted(command.deviceId());
+        String body = "Le capteur %s du bâtiment %s est de nouveau opérationnel. Surveillance rétablie."
+                .formatted(command.deviceId(), command.buildingId());
+
+        dispatchToRecipients(command.tenantId(), recipients,
+                Set.of(NotificationChannel.EMAIL, NotificationChannel.DASHBOARD),
+                AlertSeverity.INFO, subject, body,
+                "device-online:%s:%s".formatted(command.deviceId(), command.occurredAt()));
+
+        auditLog.log("DEVICE_BACK_ONLINE_NOTIFICATION", command.tenantId(),
+                "deviceId=%s building=%s".formatted(command.deviceId(), command.buildingId()));
+    }
+
     private void dispatchToRecipients(TenantId tenantId, List<Recipient> recipients,
                                        Set<NotificationChannel> channels, AlertSeverity severity,
                                        String subject, String body, String fingerprint) {

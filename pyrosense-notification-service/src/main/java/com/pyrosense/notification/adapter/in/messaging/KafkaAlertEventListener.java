@@ -91,6 +91,7 @@ public class KafkaAlertEventListener {
             case "maintenance.intervention.completed" -> processInterventionCompleted(payload);
             case "reporting.report.generated" -> processReportGenerated(payload);
             case "device.offline.detected" -> processDeviceOffline(payload);
+            case "device.back.online" -> processDeviceBackOnline(payload);
             default -> log.debug("Ignoring unhandled event type: {}", eventType);
         }
     }
@@ -171,6 +172,15 @@ public class KafkaAlertEventListener {
 
     private void processDeviceOffline(JsonNode payload) {
         eventUseCase.processDeviceOffline(new DeviceOfflineCommand(
+                parseTenantId(payload),
+                field(payload, "deviceId"),
+                fieldOrDefault(payload, "buildingId", ""),
+                fieldOrDefault(payload, "occurredAt", "")
+        ));
+    }
+
+    private void processDeviceBackOnline(JsonNode payload) {
+        eventUseCase.processDeviceBackOnline(new DeviceBackOnlineCommand(
                 parseTenantId(payload),
                 field(payload, "deviceId"),
                 fieldOrDefault(payload, "buildingId", ""),

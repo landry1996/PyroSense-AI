@@ -21,6 +21,8 @@ public interface ProcessNotificationEventUseCase {
 
     void processDeviceOffline(DeviceOfflineCommand command);
 
+    void processDeviceBackOnline(DeviceBackOnlineCommand command);
+
     record AlertEventCommand(
             TenantId tenantId, String alertId, String deviceId,
             AlertSeverity severity, String alertType, String occurredAt
@@ -51,6 +53,11 @@ public interface ProcessNotificationEventUseCase {
     ) {}
 
     record DeviceOfflineCommand(
+            TenantId tenantId, String deviceId, String buildingId,
+            String occurredAt
+    ) {}
+
+    record DeviceBackOnlineCommand(
             TenantId tenantId, String deviceId, String buildingId,
             String occurredAt
     ) {}

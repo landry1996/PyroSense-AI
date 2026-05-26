@@ -1,6 +1,10 @@
 package com.pyrosense.notification.adapter.out.template;
 
 import com.pyrosense.notification.application.port.out.TemplateRendererPort;
+import com.pyrosense.notification.domain.model.NotificationChannel;
+import com.pyrosense.notification.domain.model.NotificationTemplateCode;
+import com.pyrosense.notification.domain.model.NotificationTemplateDefinition;
+import com.pyrosense.notification.domain.model.NotificationTemplateRegistry;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -8,7 +12,7 @@ import java.util.Map;
 @Component
 public class DefaultTemplateRenderer implements TemplateRendererPort {
 
-    private static final Map<String, TemplateEntry> TEMPLATES = Map.ofEntries(
+    private static final Map<String, TemplateEntry> LEGACY_TEMPLATES = Map.ofEntries(
             Map.entry("alert.critical", new TemplateEntry(
                     "[CRITIQUE] Alerte {alertType} — Capteur {deviceId}",
                     "Une alerte CRITIQUE de type {alertType} a été détectée sur le capteur {deviceId} à {occurredAt}. Une intervention immédiate est recommandée.")),
@@ -40,14 +44,26 @@ public class DefaultTemplateRenderer implements TemplateRendererPort {
 
     @Override
     public String renderSubject(String templateKey, Map<String, String> variables) {
-        TemplateEntry entry = TEMPLATES.getOrDefault(templateKey, TEMPLATES.get("alert.info"));
+        TemplateEntry entry = LEGACY_TEMPLATES.getOrDefault(templateKey, LEGACY_TEMPLATES.get("alert.info"));
         return substitute(entry.subject(), variables);
     }
 
     @Override
     public String renderBody(String templateKey, Map<String, String> variables) {
-        TemplateEntry entry = TEMPLATES.getOrDefault(templateKey, TEMPLATES.get("alert.info"));
+        TemplateEntry entry = LEGACY_TEMPLATES.getOrDefault(templateKey, LEGACY_TEMPLATES.get("alert.info"));
         return substitute(entry.body(), variables);
+    }
+
+    @Override
+    public String renderSubject(NotificationTemplateCode code, NotificationChannel channel, Map<String, String> variables) {
+        NotificationTemplateDefinition def = NotificationTemplateRegistry.get(code);
+        return def.renderSubject(channel, variables);
+    }
+
+    @Override
+    public String renderBody(NotificationTemplateCode code, NotificationChannel channel, Map<String, String> variables) {
+        NotificationTemplateDefinition def = NotificationTemplateRegistry.get(code);
+        return def.render(channel, variables);
     }
 
     private String substitute(String template, Map<String, String> variables) {
