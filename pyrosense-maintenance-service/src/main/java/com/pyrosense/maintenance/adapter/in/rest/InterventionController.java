@@ -19,6 +19,9 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -64,8 +67,9 @@ public class InterventionController {
     @PostMapping
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<InterventionResponse> create(@Valid @RequestBody CreateInterventionRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new CreateInterventionCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 AlertId.from(request.alertId()),
                 new DeviceId(UUID.fromString(request.deviceId())),
                 request.severity(),
@@ -170,14 +174,29 @@ public class InterventionController {
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
     public ResponseEntity<List<InterventionResponse>> list(@RequestParam(required = false) String status,
                                                            @RequestParam(defaultValue = "0") int page,
-                                                           @RequestParam(defaultValue = "50") int size) {
+                                                           @RequestParam(defaultValue = "50") int size,
+                                                           Authentication authentication) {
         int safeSize = Math.min(size, 200);
         int offset = page * safeSize;
         TenantId tid = TenantContext.require();
-        List<Intervention> interventions = (status != null)
-                ? queryUseCase.findByTenantAndStatus(tid, InterventionStatus.valueOf(status))
-                : queryUseCase.findByTenant(tid);
-        // TODO: Replace in-memory pagination with proper SQL LIMIT/OFFSET
+
+        List<Intervention> interventions;
+        if (isElectrician(authentication) && canExtractUserId(authentication)) {
+            UserId electricianId = extractUserId(authentication);
+            interventions = queryUseCase.findByElectrician(electricianId).stream()
+                    .filter(i -> i.getTenantId().equals(tid))
+                    .toList();
+            if (status != null) {
+                InterventionStatus filterStatus = InterventionStatus.valueOf(status);
+                interventions = interventions.stream()
+                        .filter(i -> i.getStatus() == filterStatus).toList();
+            }
+        } else {
+            interventions = (status != null)
+                    ? queryUseCase.findByTenantAndStatus(tid, InterventionStatus.valueOf(status))
+                    : queryUseCase.findByTenant(tid);
+        }
+
         return ResponseEntity.ok(interventions.stream()
                 .skip(offset).limit(safeSize)
                 .map(this::toResponse).toList());
@@ -220,9 +239,19 @@ public class InterventionController {
 
     @GetMapping("/kanban")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'SUPPORT_READONLY')")
-    public ResponseEntity<KanbanResponse> kanban() {
+    public ResponseEntity<KanbanResponse> kanban(Authentication authentication) {
         TenantId tid = TenantContext.require();
-        List<Intervention> all = queryUseCase.findByTenant(tid);
+
+        List<Intervention> all;
+        if (isElectrician(authentication) && canExtractUserId(authentication)) {
+            UserId electricianId = extractUserId(authentication);
+            all = queryUseCase.findByElectrician(electricianId).stream()
+                    .filter(i -> i.getTenantId().equals(tid))
+                    .toList();
+        } else {
+            all = queryUseCase.findByTenant(tid);
+        }
+
         var grouped = all.stream().collect(java.util.stream.Collectors.groupingBy(
                 Intervention::getStatus,
                 java.util.stream.Collectors.mapping(this::toResponse, java.util.stream.Collectors.toList())
@@ -277,9 +306,29 @@ public class InterventionController {
         );
     }
 
+    private boolean isElectrician(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ELECTRICIAN"))
+                && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .noneMatch(a -> a.equals("ROLE_PLATFORM_ADMIN") || a.equals("ROLE_TENANT_ADMIN")
+                        || a.equals("ROLE_PROPERTY_MANAGER"));
+    }
+
+    private boolean canExtractUserId(Authentication authentication) {
+        return authentication != null && authentication.getPrincipal() instanceof Jwt;
+    }
+
+    private UserId extractUserId(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            return new UserId(UUID.fromString(jwt.getSubject()));
+        }
+        throw new IllegalStateException("Cannot extract user ID from authentication");
+    }
+
     // Request DTOs
     record CreateInterventionRequest(
-            @NotBlank String tenantId,
             @NotBlank String alertId,
             @NotBlank String deviceId,
             @NotBlank String severity,

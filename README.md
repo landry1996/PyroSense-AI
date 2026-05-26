@@ -161,6 +161,78 @@ mvn verify -Pprod
 [Frontend SPA]         [Notification Service] --> Email/SMS/Webhook
 ```
 
+## MVP 2 — Dashboard, Maintenance, Reporting, Notifications
+
+Le MVP 2 ajoute les services orientes utilisateur : dashboard temps reel, interventions de maintenance, generation de rapports PDF, et notifications multi-canal.
+
+### Demarrage rapide MVP 2
+
+```bash
+# Tout le MVP 2 (build + run)
+./scripts/start-mvp2-local.sh
+
+# Sans rebuild
+./scripts/start-mvp2-local.sh --no-build
+
+# Infrastructure seule (services dans IDE)
+./scripts/start-mvp2-local.sh --infra-only
+```
+
+### Endpoints principaux
+
+| Endpoint | URL | Description |
+|----------|-----|-------------|
+| Frontend Dashboard | http://localhost:4200 | Interface Angular |
+| API Gateway | http://localhost:8080/api/v1/ | Point d'entree REST |
+| Dashboard overview | GET /api/v1/dashboard/overview | KPI et stats |
+| Alertes | GET /api/v1/alerts | Liste alertes (filtres severity/status) |
+| Interventions | GET /api/v1/interventions | Liste interventions |
+| Interventions kanban | GET /api/v1/interventions/kanban | Vue kanban 5 colonnes |
+| Rapports | POST /api/v1/reports/monthly-health | Generer bilan mensuel |
+| Notifications | GET /api/v1/notifications | Historique notifications |
+| Preferences | GET /api/v1/notification-preferences/me | Preferences utilisateur |
+
+### Comptes de test (Keycloak)
+
+> Keycloak : http://localhost:8180 — admin / `admin_local_dev`
+
+Aucun utilisateur pre-configure dans ce prototype. Pour tester les endpoints protege :
+1. Creer un realm `pyrosense` dans Keycloak
+2. Ajouter un client `pyrosense-frontend` (public, PKCE)
+3. Creer un utilisateur et lui assigner un role (`TENANT_ADMIN`, `PROPERTY_MANAGER`, `ELECTRICIAN`)
+4. Obtenir un JWT via le flow Authorization Code
+5. Passer le JWT dans le header `Authorization: Bearer <token>`
+
+Alternativement, en developpement local avec le profil `test`, les endpoints peuvent etre accedes sans JWT si la SecurityConfig est configuree en mode permissif.
+
+### Profil Docker `mvp2`
+
+| Service | Port | Role |
+|---------|:----:|------|
+| dashboard-frontend | 4200 | SPA Angular (nginx) |
+| api-gateway | 8080 | Routage, JWT, CORS |
+| dashboard-service | 8088 | Read models agreg |
+| alerting-service | 8086 | Cycle de vie alertes |
+| maintenance-service | 8089 | Interventions |
+| reporting-service | 8091 | Rapports PDF |
+| notification-service | 8087 | Notifications multi-canal |
+
+### Documentation MVP 2
+
+| Document | Contenu |
+|----------|---------|
+| [MVP 2 Overview](docs/mvp2-overview.md) | Objectifs, perimetre, hors perimetre, dependances |
+| [Dashboard API](docs/dashboard-api.md) | Endpoints, roles, cache |
+| [Maintenance](docs/maintenance-service.md) | Cycle de vie, SLA, workflow alerte → intervention |
+| [Reporting](docs/reporting-service.md) | Types rapports, PDF, telechargement securise |
+| [Notifications](docs/notification-service.md) | Canaux, templates, preferences, anti-spam |
+| [Securite MVP 2](docs/mvp2-security.md) | RBAC, tenant isolation, audit |
+| [Evenements Kafka](docs/mvp2-events.md) | Topics, events, versioning, idempotence |
+| [Tests MVP 2](docs/mvp2-testing-strategy.md) | Strategie, commandes, couverture |
+| [DevOps MVP 2](docs/mvp2-local-run.md) | Docker, variables, demarrage local |
+| [Observabilite](docs/mvp2-observability.md) | Metriques, tracing, alertes Prometheus |
+| [Production Readiness](docs/production-readiness-mvp2.md) | Checklist avant pilote reel |
+
 ## Remote Debugging (Docker)
 
 All services expose JDWP debug ports (via `docker-compose.override.yml`):
@@ -180,6 +252,8 @@ All services expose JDWP debug ports (via `docker-compose.override.yml`):
 
 ## Documentation
 
+### Architecture & Design
+
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | C4 diagrams, hexagonal architecture, bounded contexts, ADRs |
@@ -187,12 +261,43 @@ All services expose JDWP debug ports (via `docker-compose.override.yml`):
 | [API Documentation](docs/api-documentation.md) | REST endpoints, request/response examples, error codes |
 | [IoT Protocol](docs/iot-protocol.md) | MQTT topics, payloads, device authentication, heartbeat |
 | [Security](docs/security.md) | STRIDE threat model, RBAC, JWT, tenant isolation, secrets |
+| [ML Strategy](docs/ml-strategy.md) | Statistical MVP, ML roadmap, limitations, feedback loop |
+
+### Operations & Quality
+
+| Document | Description |
+|----------|-------------|
 | [DevOps](docs/devops.md) | Docker, CI/CD, Kubernetes-ready, observability, backup |
 | [Testing Strategy](docs/testing-strategy.md) | Test pyramid, tools, coverage targets, how to run |
-| [ML Strategy](docs/ml-strategy.md) | Statistical MVP, ML roadmap, limitations, feedback loop |
-| [Pedagogical Guide](docs/pedagogical-guide.md) | Non-technical explanation, analogies, data journey, ROI |
-| [Production Readiness](docs/production-readiness-checklist.md) | Checklist with maturity levels (MVP/Pilot/Production) |
 | [Local Development](docs/local-dev.md) | Docker setup, profiles, debugging, troubleshooting |
+| [Observability](docs/observability.md) | Metrics, tracing, logging, Prometheus alerts, Grafana |
+| [Production Readiness](docs/production-readiness-checklist.md) | Checklist with maturity levels (MVP/Pilot/Production) |
+
+### MVP 2
+
+| Document | Description |
+|----------|-------------|
+| [MVP 2 Overview](docs/mvp2-overview.md) | Objectives, scope, out-of-scope, MVP 1 dependencies |
+| [Events (Kafka)](docs/mvp2-events.md) | Topics, event catalog, versioning, idempotence |
+| [Security MVP 2](docs/mvp2-security.md) | RBAC per service, rate limiting, anti mass-assignment |
+| [Testing MVP 2](docs/mvp2-testing-strategy.md) | Test strategy, 863+ backend tests, coverage targets |
+| [DevOps MVP 2](docs/mvp2-local-run.md) | Docker Compose mvp2 profile, scripts, troubleshooting |
+| [Observability MVP 2](docs/mvp2-observability.md) | Business metrics, Prometheus alerts, tracing |
+| [Production Readiness MVP 2](docs/production-readiness-mvp2.md) | Pre-pilot checklist, risks, limitations |
+
+### MVP 3 & Pilot
+
+| Document | Description |
+|----------|-------------|
+| [MVP 3 Transition](docs/mvp3-transition.md) | Full transition plan: what's ready, what's missing, protocols, feedback loop, roadmap |
+| [Pilot Transition Plan](docs/pilot-transition-plan.md) | Hardware, certification, cloud, 12-month roadmap |
+| [Audit MVP 2](docs/audit-mvp2.md) | Security audit findings, corrections applied, verification results |
+
+### Guides
+
+| Document | Description |
+|----------|-------------|
+| [Pedagogical Guide](docs/pedagogical-guide.md) | Non-technical explanation, analogies, data journey, ROI |
 
 ## Project Constraints
 

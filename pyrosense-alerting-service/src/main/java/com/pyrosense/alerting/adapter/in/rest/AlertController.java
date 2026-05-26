@@ -25,7 +25,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/alerts")
-@PreAuthorize("hasAnyRole('TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OPERATOR')")
+@PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OCCUPANT', 'SUPPORT_READONLY')")
 public class AlertController {
 
     private static final int DEFAULT_PAGE = 0;
@@ -96,6 +96,7 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/acknowledge")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN')")
     public ResponseEntity<AlertResponse> acknowledge(@PathVariable String alertId,
                                                       @Valid @RequestBody AcknowledgeRequest request) {
         TenantId currentTenant = TenantContext.require();
@@ -108,6 +109,7 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/assign")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<AlertResponse> assign(@PathVariable String alertId,
                                                  @Valid @RequestBody AssignRequest request) {
         TenantId currentTenant = TenantContext.require();
@@ -122,6 +124,7 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/resolve")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN')")
     public ResponseEntity<AlertResponse> resolve(@PathVariable String alertId,
                                                   @Valid @RequestBody ResolveRequest request) {
         TenantId currentTenant = TenantContext.require();
@@ -136,6 +139,7 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/false-positive")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<AlertResponse> falsePositive(@PathVariable String alertId,
                                                         @Valid @RequestBody FalsePositiveRequest request) {
         TenantId currentTenant = TenantContext.require();
@@ -150,6 +154,7 @@ public class AlertController {
     }
 
     @PostMapping("/{alertId}/comments")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN')")
     public ResponseEntity<AlertResponse> addComment(@PathVariable String alertId,
                                                      @Valid @RequestBody CommentRequest request) {
         TenantId currentTenant = TenantContext.require();

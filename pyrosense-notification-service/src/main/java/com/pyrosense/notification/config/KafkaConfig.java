@@ -5,6 +5,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +16,7 @@ import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-import org.springframework.util.backoff.FixedBackOff;
+import org.springframework.util.backoff.ExponentialBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,12 @@ import java.util.Map;
 public class KafkaConfig {
 
     private final NotificationKafkaProperties notificationKafkaProperties;
+
+    @Value("${pyrosense.notification.retry.max-retries:3}")
+    private int maxRetries;
+
+    @Value("${pyrosense.notification.retry.backoff-multiplier:2}")
+    private double backoffMultiplier;
 
     public KafkaConfig(NotificationKafkaProperties notificationKafkaProperties) {
         this.notificationKafkaProperties = notificationKafkaProperties;
@@ -50,13 +57,16 @@ public class KafkaConfig {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
         return new DefaultKafkaProducerFactory<>(props);
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate(ProducerFactory<String, Object> producerFactory) {
-        return new KafkaTemplate<>(producerFactory);
+        KafkaTemplate<String, Object> template = new KafkaTemplate<>(producerFactory);
+        template.setObservationEnabled(true);
+        return template;
     }
 
     @Bean
@@ -65,11 +75,15 @@ public class KafkaConfig {
             KafkaTemplate<String, Object> kafkaTemplate) {
         var factory = new ConcurrentKafkaListenerContainerFactory<String, IntegrationEvent>();
         factory.setConsumerFactory(consumerFactory);
+
+        var backoff = new ExponentialBackOff(1000L, backoffMultiplier);
+        backoff.setMaxElapsedTime(1000L * (long) Math.pow(backoffMultiplier, maxRetries));
+
         factory.setCommonErrorHandler(new DefaultErrorHandler(
                 new DeadLetterPublishingRecoverer(kafkaTemplate,
                         (record, ex) -> new org.apache.kafka.common.TopicPartition(
                                 notificationKafkaProperties.dlqTopic(), record.partition())),
-                new FixedBackOff(1000L, 2L)));
+                backoff));
         factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }

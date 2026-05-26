@@ -6,6 +6,9 @@ import com.pyrosense.reporting.application.port.in.RequestReportUseCase;
 import com.pyrosense.reporting.domain.model.*;
 import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.TenantId;
+import com.pyrosense.shared.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -48,6 +51,16 @@ class ReportControllerSecurityTest {
     @MockBean
     private JwtDecoder jwtDecoder;
 
+    @BeforeEach
+    void setUp() {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
     @Test
     void unauthenticatedShouldBeRejectedOnProtectedEndpoints() throws Exception {
         int status = mockMvc.perform(get("/api/v1/reports"))
@@ -60,10 +73,8 @@ class ReportControllerSecurityTest {
     @Test
     @WithMockUser(roles = "PLATFORM_ADMIN")
     void adminShouldNotBeForbiddenOnReportList() throws Exception {
-        // TenantContext.require() will throw (500) since @WithMockUser doesn't set tenant,
-        // but the key assertion is that security doesn't reject it (no 401/403)
         mockMvc.perform(get("/api/v1/reports"))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -83,8 +94,7 @@ class ReportControllerSecurityTest {
         when(requestUseCase.requestMonthlyHealth(any())).thenReturn(mockReport);
 
         String body = """
-                {"tenantId":"00000000-0000-0000-0000-000000000001",
-                 "buildingId":"00000000-0000-0000-0000-000000000002",
+                {"buildingId":"00000000-0000-0000-0000-000000000002",
                  "periodStart":"2025-01-01T00:00:00Z",
                  "periodEnd":"2025-01-31T23:59:59Z"}
                 """;
@@ -98,8 +108,7 @@ class ReportControllerSecurityTest {
     @WithMockUser(roles = "INSURER")
     void insurerShouldNotAccessGenerationEndpoints() throws Exception {
         String body = """
-                {"tenantId":"00000000-0000-0000-0000-000000000001",
-                 "buildingId":"00000000-0000-0000-0000-000000000002",
+                {"buildingId":"00000000-0000-0000-0000-000000000002",
                  "periodStart":"2025-01-01T00:00:00Z",
                  "periodEnd":"2025-01-31T23:59:59Z"}
                 """;
@@ -123,8 +132,7 @@ class ReportControllerSecurityTest {
         when(requestUseCase.requestCriticalAlertReport(any())).thenReturn(mockReport);
 
         String body = """
-                {"tenantId":"00000000-0000-0000-0000-000000000001",
-                 "buildingId":"00000000-0000-0000-0000-000000000002",
+                {"buildingId":"00000000-0000-0000-0000-000000000002",
                  "periodStart":"2025-01-01T00:00:00Z",
                  "periodEnd":"2025-01-31T23:59:59Z"}
                 """;
@@ -144,8 +152,7 @@ class ReportControllerSecurityTest {
         when(requestUseCase.requestInterventionReport(any())).thenReturn(mockReport);
 
         String body = """
-                {"tenantId":"00000000-0000-0000-0000-000000000001",
-                 "buildingId":"00000000-0000-0000-0000-000000000002",
+                {"buildingId":"00000000-0000-0000-0000-000000000002",
                  "periodStart":"2025-01-01T00:00:00Z",
                  "periodEnd":"2025-01-31T23:59:59Z"}
                 """;

@@ -136,3 +136,68 @@ groups:
         annotations:
           summary: "Notification retry backlog growing"
           description: "{{ $value }} notifications are in retry state."
+
+  - name: pyrosense-mvp2
+    rules:
+      - alert: NotificationFailuresHigh
+        expr: rate(pyrosense_notification_failed_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High notification failure rate (MVP 2)"
+          description: "Notification failures: {{ $value | humanize }}/s over last 5 minutes."
+
+      - alert: ReportGenerationFailures
+        expr: increase(pyrosense_reporting_reports_failed_total[15m]) > 3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Report generation failures detected"
+          description: "{{ $value }} report generation failures in the last 15 minutes."
+
+      - alert: KafkaDlqNonEmpty
+        expr: sum(increase(pyrosense_maintenance_dlq_events_total[5m]) + increase(pyrosense_notification_dlq_events_total[5m]) + increase(pyrosense_reporting_dlq_events_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Events routed to DLQ"
+          description: "Dead letter queue received events - investigate processing failures."
+
+      - alert: InterventionOverdueHigh
+        expr: pyrosense_maintenance_interventions_overdue > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many interventions overdue"
+          description: "{{ $value }} interventions are past their SLA deadline."
+
+      - alert: ApiErrorRateHigh
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5..", application=~"pyrosense-(dashboard|maintenance|reporting|notification)-service"}[5m])) by (application) / sum(rate(http_server_requests_seconds_count{application=~"pyrosense-(dashboard|maintenance|reporting|notification)-service"}[5m])) by (application) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate on {{ $labels.application }}"
+          description: "5xx error rate is {{ $value | humanizePercentage }} on {{ $labels.application }}."
+
+      - alert: ReportDownloadDeniedSpike
+        expr: increase(pyrosense_reporting_downloads_denied_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Spike in denied report downloads"
+          description: "{{ $value }} report download attempts denied in 5 minutes - possible token abuse."
+
+      - alert: SuspiciousTenantAccessDetected
+        expr: sum(increase(pyrosense_dashboard_suspicious_tenant_access_total[5m]) + increase(pyrosense_maintenance_suspicious_tenant_access_total[5m]) + increase(pyrosense_notification_suspicious_tenant_access_total[5m])) > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Suspicious cross-tenant access detected"
+          description: "Multiple cross-tenant access attempts detected across MVP 2 services."

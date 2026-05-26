@@ -55,4 +55,5 @@ management:
 pyrosense:
   reporting:
     kafka:
-      output-topic: reporting-events
+      output-topic: ${KAFKA_TOPIC_REPORTS:pyrosense.reports.events}
+      dlq-topic: ${KAFKA_TOPIC_DLQ:pyrosense.dead-letter.events}

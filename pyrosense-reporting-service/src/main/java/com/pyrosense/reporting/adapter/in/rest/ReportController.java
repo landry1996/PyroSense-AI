@@ -9,6 +9,7 @@ import com.pyrosense.reporting.domain.model.Report;
 import com.pyrosense.reporting.domain.model.ReportType;
 import com.pyrosense.shared.id.BuildingId;
 import com.pyrosense.shared.id.TenantId;
+import com.pyrosense.shared.security.AllowedFields;
 import com.pyrosense.shared.security.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -42,9 +43,12 @@ public class ReportController {
 
     @PostMapping("/monthly")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
-    public ResponseEntity<ReportResponse> generateMonthly(@Valid @RequestBody GenerateReportRequest request) {
+    public ResponseEntity<ReportResponse> generateMonthly(
+            @AllowedFields({"buildingId", "type", "periodStart", "periodEnd"})
+            @Valid @RequestBody GenerateReportRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new GenerateReportCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 new BuildingId(UUID.fromString(request.buildingId())),
                 ReportType.valueOf(request.type()),
                 request.periodStart(),
@@ -56,9 +60,12 @@ public class ReportController {
 
     @PostMapping("/monthly-health")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
-    public ResponseEntity<ReportResponse> requestMonthlyHealth(@Valid @RequestBody PeriodReportRequest request) {
+    public ResponseEntity<ReportResponse> requestMonthlyHealth(
+            @AllowedFields({"buildingId", "periodStart", "periodEnd"})
+            @Valid @RequestBody PeriodReportRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new MonthlyHealthCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 new BuildingId(UUID.fromString(request.buildingId())),
                 request.periodStart(), request.periodEnd());
         Report report = requestUseCase.requestMonthlyHealth(command);
@@ -67,9 +74,12 @@ public class ReportController {
 
     @PostMapping("/monitoring-certificate")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
-    public ResponseEntity<ReportResponse> requestMonitoringCertificate(@Valid @RequestBody PeriodReportRequest request) {
+    public ResponseEntity<ReportResponse> requestMonitoringCertificate(
+            @AllowedFields({"buildingId", "periodStart", "periodEnd"})
+            @Valid @RequestBody PeriodReportRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new MonitoringCertificateCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 new BuildingId(UUID.fromString(request.buildingId())),
                 request.periodStart(), request.periodEnd());
         Report report = requestUseCase.requestMonitoringCertificate(command);
@@ -81,8 +91,9 @@ public class ReportController {
     public ResponseEntity<ReportResponse> requestCriticalAlertReport(
             @PathVariable UUID alertId,
             @Valid @RequestBody PeriodReportRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new CriticalAlertReportCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 new BuildingId(UUID.fromString(request.buildingId())),
                 alertId, request.periodStart(), request.periodEnd());
         Report report = requestUseCase.requestCriticalAlertReport(command);
@@ -94,8 +105,9 @@ public class ReportController {
     public ResponseEntity<ReportResponse> requestInterventionReport(
             @PathVariable UUID interventionId,
             @Valid @RequestBody PeriodReportRequest request) {
+        TenantId tid = TenantContext.require();
         var command = new InterventionReportCommand(
-                new TenantId(UUID.fromString(request.tenantId())),
+                tid,
                 new BuildingId(UUID.fromString(request.buildingId())),
                 interventionId, request.periodStart(), request.periodEnd());
         Report report = requestUseCase.requestInterventionReport(command);
@@ -126,6 +138,9 @@ public class ReportController {
                 .map(report -> ResponseEntity.ok()
                         .header(HttpHeaders.CONTENT_DISPOSITION,
                                 "attachment; filename=\"%s\"".formatted(report.getFileName()))
+                        .header("X-Content-Type-Options", "nosniff")
+                        .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate")
+                        .header(HttpHeaders.PRAGMA, "no-cache")
                         .contentType(MediaType.APPLICATION_PDF)
                         .body(report.getContent()))
                 .orElse(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
@@ -202,7 +217,6 @@ public class ReportController {
 
     // Request DTOs
     record GenerateReportRequest(
-            @NotBlank String tenantId,
             @NotBlank String buildingId,
             @NotBlank String type,
             @NotNull Instant periodStart,
@@ -210,7 +224,6 @@ public class ReportController {
     ) {}
 
     record PeriodReportRequest(
-            @NotBlank String tenantId,
             @NotBlank String buildingId,
             @NotNull Instant periodStart,
             @NotNull Instant periodEnd

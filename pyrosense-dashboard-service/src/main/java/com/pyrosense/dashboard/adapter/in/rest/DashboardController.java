@@ -48,6 +48,7 @@ public class DashboardController {
     }
 
     @GetMapping("/overview")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<OverviewResponse> getOverview() {
         TenantId tenantId = TenantContext.require();
         DashboardOverview overview = overviewQuery.getOverview(tenantId);
@@ -55,6 +56,7 @@ public class DashboardController {
     }
 
     @GetMapping("/risky-buildings")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<List<RiskyBuildingResponse>> getRiskyBuildings(
             @RequestParam(defaultValue = "10") int limit) {
         TenantId tenantId = TenantContext.require();
@@ -64,6 +66,7 @@ public class DashboardController {
     }
 
     @GetMapping("/risk-trend")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<List<RiskTrendResponse>> getRiskTrend(
             @RequestParam(defaultValue = "30d") String period) {
         TenantId tenantId = TenantContext.require();
@@ -73,6 +76,7 @@ public class DashboardController {
     }
 
     @GetMapping("/recent-alerts")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OCCUPANT')")
     public ResponseEntity<List<RecentAlertResponse>> getRecentAlerts(
             @RequestParam(defaultValue = "10") int limit) {
         TenantId tenantId = TenantContext.require();
@@ -82,6 +86,7 @@ public class DashboardController {
     }
 
     @GetMapping("/priority-interventions")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN')")
     public ResponseEntity<List<PriorityInterventionResponse>> getPriorityInterventions(
             @RequestParam(defaultValue = "10") int limit) {
         TenantId tenantId = TenantContext.require();
@@ -98,6 +103,7 @@ public class DashboardController {
     }
 
     @GetMapping("/device-health")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<DeviceHealthResponse> getDeviceHealth() {
         TenantId tenantId = TenantContext.require();
         DeviceHealthSummary health = deviceHealthQuery.getDeviceHealth(tenantId);

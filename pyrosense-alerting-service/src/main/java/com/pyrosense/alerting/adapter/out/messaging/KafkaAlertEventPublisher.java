@@ -10,11 +10,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
 public class KafkaAlertEventPublisher implements AlertEventPublisherPort {
 
+    private static final String SOURCE_SERVICE = "pyrosense-alerting-service";
     private static final Logger log = LoggerFactory.getLogger(KafkaAlertEventPublisher.class);
 
     private final KafkaTemplate<String, IntegrationEvent> kafkaTemplate;
@@ -23,7 +22,7 @@ public class KafkaAlertEventPublisher implements AlertEventPublisherPort {
 
     public KafkaAlertEventPublisher(KafkaTemplate<String, IntegrationEvent> kafkaTemplate,
                                      ObjectMapper objectMapper,
-                                     @Value("${pyrosense.alerting.kafka.output-topic:alerting-events}") String topic) {
+                                     @Value("${pyrosense.alerting.kafka.output-topic:pyrosense.alerts.events}") String topic) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.topic = topic;
@@ -31,24 +30,38 @@ public class KafkaAlertEventPublisher implements AlertEventPublisherPort {
 
     @Override
     public void publish(DomainEvent event) {
+        publish(event, null, null);
+    }
+
+    public void publish(DomainEvent event, String correlationId, String tenantId) {
         try {
             String payload = objectMapper.writeValueAsString(event);
-            IntegrationEvent integrationEvent = new IntegrationEvent(
-                    UUID.randomUUID(),
-                    event.eventType(),
-                    event.occurredAt(),
-                    "pyrosense-alerting-service",
-                    payload
-            );
-            kafkaTemplate.send(topic, integrationEvent)
+            IntegrationEvent integrationEvent = IntegrationEvent.builder()
+                    .eventId(event.eventId())
+                    .eventType(event.eventType())
+                    .version(1)
+                    .occurredAt(event.occurredAt())
+                    .sourceService(SOURCE_SERVICE)
+                    .tenantId(tenantId)
+                    .correlationId(correlationId)
+                    .causationId(event.eventId().toString())
+                    .payload(payload)
+                    .build();
+
+            kafkaTemplate.send(topic, event.eventId().toString(), integrationEvent)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
-                            log.error("Failed to publish event to {}: {}", topic, ex.getMessage(), ex);
+                            log.error("Failed to publish event {} to {}: {}",
+                                    event.eventType(), topic, ex.getMessage(), ex);
+                        } else {
+                            log.info("Published event={} eventId={} to topic={} partition={} offset={}",
+                                    event.eventType(), event.eventId(), topic,
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset());
                         }
                     });
-            log.debug("Published event: {} to topic: {}", event.eventType(), topic);
         } catch (Exception e) {
-            log.error("Failed to publish event: {}", event.eventType(), e);
+            log.error("Failed to serialize event: {} eventId={}", event.eventType(), event.eventId(), e);
         }
     }
 }

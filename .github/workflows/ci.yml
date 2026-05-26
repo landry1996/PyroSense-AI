@@ -211,6 +211,39 @@ jobs:
       - name: Build Docker images
         run: docker compose --env-file .env.docker --profile services build
 
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: pyrosense-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: pyrosense-dashboard
+
+      - name: Run unit tests with coverage
+        run: npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
+        working-directory: pyrosense-dashboard
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: pyrosense-dashboard/coverage/
+          retention-days: 14
+
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest

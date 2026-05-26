@@ -38,8 +38,12 @@ public class ManageRecommendationService implements ManageRecommendationUseCase 
     }
 
     @Override
-    public Intervention acceptRecommendation(UUID recommendationId) {
+    public Intervention acceptRecommendation(UUID recommendationId, TenantId tenantId) {
         InterventionRecommendation recommendation = findOrThrow(recommendationId);
+
+        if (!recommendation.getTenantId().equals(tenantId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Access denied");
+        }
 
         if (recommendation.getStatus() != RecommendationStatus.PENDING) {
             throw new BusinessException(ErrorCode.CONFLICT,
@@ -72,8 +76,12 @@ public class ManageRecommendationService implements ManageRecommendationUseCase 
     }
 
     @Override
-    public InterventionRecommendation rejectRecommendation(UUID recommendationId, String reason) {
+    public InterventionRecommendation rejectRecommendation(UUID recommendationId, String reason, TenantId tenantId) {
         InterventionRecommendation recommendation = findOrThrow(recommendationId);
+
+        if (!recommendation.getTenantId().equals(tenantId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Access denied");
+        }
 
         if (recommendation.getStatus() != RecommendationStatus.PENDING) {
             throw new BusinessException(ErrorCode.CONFLICT,

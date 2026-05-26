@@ -38,9 +38,7 @@ public class ManageNotificationPreferencesService implements ManageNotificationP
                 ? policyRepository.findByTenantId(tenantId).orElse(new TenantNotificationPolicy(tenantId))
                 : new TenantNotificationPolicy(tenantId);
 
-        boolean effectiveCriticalOverride = policy.isCriticalOverrideMandatory()
-                ? true
-                : command.criticalOverrideEnabled();
+        boolean effectiveCriticalOverride = true;
 
         boolean effectiveSms = command.smsEnabled()
                 && (!policy.isRequirePhoneVerificationForSms() || command.phoneVerified());

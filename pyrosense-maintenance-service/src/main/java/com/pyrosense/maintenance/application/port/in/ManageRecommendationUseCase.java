@@ -10,9 +10,9 @@ import java.util.UUID;
 
 public interface ManageRecommendationUseCase {
 
-    Intervention acceptRecommendation(UUID recommendationId);
+    Intervention acceptRecommendation(UUID recommendationId, TenantId tenantId);
 
-    InterventionRecommendation rejectRecommendation(UUID recommendationId, String reason);
+    InterventionRecommendation rejectRecommendation(UUID recommendationId, String reason, TenantId tenantId);
 
     List<InterventionRecommendation> findPendingByTenant(TenantId tenantId);
 }

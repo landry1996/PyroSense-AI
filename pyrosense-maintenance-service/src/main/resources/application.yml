@@ -58,5 +58,10 @@ management:
 pyrosense:
   maintenance:
     kafka:
-      alerting-topic: alerting-events
-      output-topic: maintenance-events
+      alerting-topic: ${KAFKA_TOPIC_ALERTS:pyrosense.alerts.events}
+      output-topic: ${KAFKA_TOPIC_MAINTENANCE:pyrosense.maintenance.events}
+      dlq-topic: ${KAFKA_TOPIC_DLQ:pyrosense.dead-letter.events}
+      retry:
+        max-attempts: 3
+        backoff-ms: 1000
+        backoff-multiplier: 2

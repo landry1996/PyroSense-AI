@@ -121,7 +121,7 @@ class AlertToInterventionWorkflowTest {
         assertThat(recommendation.getStatus()).isEqualTo(RecommendationStatus.PENDING);
 
         // Step 4: Manager accepts recommendation
-        Intervention intervention = recommendationService.acceptRecommendation(recommendation.getId());
+        Intervention intervention = recommendationService.acceptRecommendation(recommendation.getId(), tenantId);
         assertThat(intervention.getStatus()).isEqualTo(InterventionStatus.CREATED);
         assertThat(intervention.getPriority()).isEqualTo(InterventionPriority.HIGH);
 
@@ -153,7 +153,7 @@ class AlertToInterventionWorkflowTest {
         recommendationRepo.save(recommendation);
 
         InterventionRecommendation rejected = recommendationService.rejectRecommendation(
-                recommendation.getId(), "Risk assessed as acceptable by team");
+                recommendation.getId(), "Risk assessed as acceptable by team", tenantId);
 
         assertThat(rejected.getStatus()).isEqualTo(RecommendationStatus.REJECTED);
         assertThat(rejected.getRejectionReason()).isEqualTo("Risk assessed as acceptable by team");

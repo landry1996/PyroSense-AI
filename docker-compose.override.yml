@@ -87,10 +87,18 @@ services:
       - "5019:5005"
     profiles: ["services", "full"]
 
+  dashboard-service:
+    environment:
+      JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+    ports:
+      - "8088:8088"
+      - "5020:5005"
+    profiles: ["services", "full", "mvp2"]
+
   api-gateway:
     environment:
       JAVA_OPTS: -Xms128m -Xmx384m -XX:+UseZGC -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     ports:
       - "8080:8080"
       - "5010:5005"
-    profiles: ["services", "full"]
+    profiles: ["services", "full", "mvp2"]

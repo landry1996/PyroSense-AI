@@ -8,6 +8,7 @@ import com.pyrosense.notification.domain.model.NotificationPreferences;
 import com.pyrosense.notification.domain.model.TenantNotificationPolicy;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
+import com.pyrosense.shared.security.AllowedFields;
 import com.pyrosense.shared.security.TenantContext;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +47,9 @@ public class NotificationPreferencesController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PreferencesResponse> updateMyPreferences(
             Authentication authentication,
+            @AllowedFields({"emailEnabled", "smsEnabled", "pushEnabled", "webhookEnabled",
+                    "quietHoursStart", "quietHoursEnd", "language", "criticalOverrideEnabled",
+                    "phoneVerified", "emailVerified", "pushTokenRegistered"})
             @Valid @RequestBody UpdatePreferencesRequest request) {
         UserId userId = extractUserId(authentication);
         TenantId tenantId = TenantContext.require();
@@ -74,6 +78,9 @@ public class NotificationPreferencesController {
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<PreferencesResponse> updatePreferences(
             @PathVariable String userId,
+            @AllowedFields({"emailEnabled", "smsEnabled", "pushEnabled", "webhookEnabled",
+                    "quietHoursStart", "quietHoursEnd", "language", "criticalOverrideEnabled",
+                    "phoneVerified", "emailVerified", "pushTokenRegistered"})
             @Valid @RequestBody UpdatePreferencesRequest request) {
         TenantId tenantId = TenantContext.require();
         NotificationPreferences prefs = useCase.updatePreferences(
@@ -102,6 +109,10 @@ public class NotificationPreferencesController {
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<PolicyResponse> updateTenantPolicy(
             @PathVariable String tenantId,
+            @AllowedFields({"emailEnabledByDefault", "smsEnabledByDefault", "pushEnabledByDefault",
+                    "webhookEnabledByDefault", "criticalOverrideMandatory",
+                    "requirePhoneVerificationForSms", "requirePushTokenForPush",
+                    "defaultQuietHoursStart", "defaultQuietHoursEnd", "defaultLanguage"})
             @Valid @RequestBody UpdatePolicyRequest request) {
         TenantId tid = new TenantId(UUID.fromString(tenantId));
         TenantNotificationPolicy policy = policyUseCase.updatePolicy(tid,

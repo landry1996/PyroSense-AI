@@ -55,10 +55,19 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic notificationOutputTopic() {
+        return TopicBuilder.name(properties.outputTopic())
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic dlqTopic() {
         return TopicBuilder.name(properties.dlqTopic())
                 .partitions(3)
                 .replicas(1)
+                .config("retention.ms", "604800000")
                 .build();
     }
 }

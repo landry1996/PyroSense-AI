@@ -35,7 +35,8 @@ public class RecommendationController {
     @PostMapping("/{id}/accept")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<AcceptResponse> accept(@PathVariable UUID id) {
-        Intervention intervention = manageRecommendationUseCase.acceptRecommendation(id);
+        var tenantId = TenantContext.require();
+        Intervention intervention = manageRecommendationUseCase.acceptRecommendation(id, tenantId);
         return ResponseEntity.ok(new AcceptResponse(
                 id.toString(),
                 intervention.getId().toString(),
@@ -48,7 +49,8 @@ public class RecommendationController {
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
     public ResponseEntity<RecommendationResponse> reject(@PathVariable UUID id,
                                                           @Valid @RequestBody RejectRequest request) {
-        InterventionRecommendation rejected = manageRecommendationUseCase.rejectRecommendation(id, request.reason());
+        var tenantId = TenantContext.require();
+        InterventionRecommendation rejected = manageRecommendationUseCase.rejectRecommendation(id, request.reason(), tenantId);
         return ResponseEntity.ok(toResponse(rejected));
     }
 

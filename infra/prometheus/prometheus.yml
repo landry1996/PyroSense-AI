@@ -49,6 +49,11 @@ scrape_configs:
     static_configs:
       - targets: ['notification-service:8087', 'host.docker.internal:8087']
 
+  - job_name: 'pyrosense-dashboard'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['dashboard-service:8088', 'host.docker.internal:8088']
+
   - job_name: 'pyrosense-reporting'
     metrics_path: /actuator/prometheus
     static_configs:

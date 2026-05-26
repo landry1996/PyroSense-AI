@@ -15,6 +15,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -79,26 +80,83 @@ class DashboardSecurityTest {
 
     @Test
     @WithMockUser(roles = "ELECTRICIAN")
-    void electrician_shouldHaveAccess() throws Exception {
+    void electrician_shouldNotAccessOverview() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/overview"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ELECTRICIAN")
+    void electrician_shouldAccessRecentAlerts() throws Exception {
         TenantId tenantId = new TenantId(UUID.randomUUID());
         TenantContext.set(tenantId);
-        when(overviewQuery.getOverview(any())).thenReturn(
-                new DashboardOverview(tenantId, 0, 0, 0, 0, 0, 0, 0, 0, 0, Instant.now()));
+        when(recentAlertsQuery.getRecentAlerts(any(), any(int.class))).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/v1/dashboard/overview"))
+        mockMvc.perform(get("/api/v1/dashboard/recent-alerts"))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(roles = "SUPPORT_READONLY")
-    void supportReadonly_shouldHaveAccess() throws Exception {
+    @WithMockUser(roles = "ELECTRICIAN")
+    void electrician_shouldAccessPriorityInterventions() throws Exception {
         TenantId tenantId = new TenantId(UUID.randomUUID());
         TenantContext.set(tenantId);
-        when(overviewQuery.getOverview(any())).thenReturn(
-                new DashboardOverview(tenantId, 0, 0, 0, 0, 0, 0, 0, 0, 0, Instant.now()));
+        when(interventionsQuery.getAssignedInterventions(any(), any(int.class))).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/v1/dashboard/overview"))
+        mockMvc.perform(get("/api/v1/dashboard/priority-interventions"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ELECTRICIAN")
+    void electrician_shouldNotAccessRiskTrend() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/risk-trend"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ELECTRICIAN")
+    void electrician_shouldNotAccessDeviceHealth() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/device-health"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPPORT_READONLY")
+    void supportReadonly_shouldNotAccessOverview() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/overview"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "SUPPORT_READONLY")
+    void supportReadonly_shouldNotAccessRiskTrend() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/risk-trend"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "OCCUPANT")
+    void occupant_shouldAccessRecentAlerts() throws Exception {
+        TenantId tenantId = new TenantId(UUID.randomUUID());
+        TenantContext.set(tenantId);
+        when(recentAlertsQuery.getRecentAlerts(any(), any(int.class))).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/dashboard/recent-alerts"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "OCCUPANT")
+    void occupant_shouldNotAccessOverview() throws Exception {
+        TenantContext.set(new TenantId(UUID.randomUUID()));
+        mockMvc.perform(get("/api/v1/dashboard/overview"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -55,15 +55,17 @@ management:
 pyrosense:
   notification:
     kafka:
-      alerting-topic: ${KAFKA_TOPIC_ALERTING:alerting-events}
-      scoring-topic: ${KAFKA_TOPIC_SCORING:scoring-events}
-      maintenance-topic: ${KAFKA_TOPIC_MAINTENANCE:maintenance-events}
-      reporting-topic: ${KAFKA_TOPIC_REPORTING:reporting-events}
-      device-topic: ${KAFKA_TOPIC_DEVICE:device-events}
-      dlq-topic: ${KAFKA_TOPIC_DLQ:notification-dlq}
+      alerting-topic: ${KAFKA_TOPIC_ALERTS:pyrosense.alerts.events}
+      scoring-topic: ${KAFKA_TOPIC_SCORING:pyrosense.scoring.events}
+      maintenance-topic: ${KAFKA_TOPIC_MAINTENANCE:pyrosense.maintenance.events}
+      reporting-topic: ${KAFKA_TOPIC_REPORTS:pyrosense.reports.events}
+      device-topic: ${KAFKA_TOPIC_DEVICE:pyrosense.device.events}
+      output-topic: ${KAFKA_TOPIC_NOTIFICATIONS:pyrosense.notifications.events}
+      dlq-topic: ${KAFKA_TOPIC_DLQ:pyrosense.dead-letter.events}
       consumer-group-id: ${KAFKA_GROUP_ID:notification-group}
     retry:
       interval-ms: 30000
       max-retries: 3
+      backoff-multiplier: 2
     deduplication:
       window-minutes: 30

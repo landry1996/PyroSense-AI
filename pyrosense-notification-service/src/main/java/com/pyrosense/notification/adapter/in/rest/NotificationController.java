@@ -115,8 +115,16 @@ public class NotificationController {
                 n.getRetryCount(),
                 n.getCreatedAt(),
                 n.getSentAt(),
-                n.getFailureReason()
+                maskFailureReason(n.getFailureReason())
         );
+    }
+
+    private String maskFailureReason(String reason) {
+        if (reason == null) return null;
+        if (reason.contains("Exception") || reason.contains("stacktrace") || reason.length() > 200) {
+            return "Delivery failed - contact support";
+        }
+        return reason;
     }
 
     record NotificationResponse(

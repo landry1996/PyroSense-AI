@@ -119,7 +119,7 @@ class KafkaEventPublisherIT {
             var integrationEvent = objectMapper.readValue(record.value(), IntegrationEvent.class);
             assertThat(integrationEvent.eventId()).isEqualTo(event.eventId());
             assertThat(integrationEvent.eventType()).isEqualTo("ingestion.telemetry.received");
-            assertThat(integrationEvent.source()).isEqualTo("ingestion-service");
+            assertThat(integrationEvent.sourceService()).isEqualTo("ingestion-service");
             assertThat(integrationEvent.occurredAt()).isNotNull();
             assertThat(integrationEvent.payload()).isNotBlank();
         }

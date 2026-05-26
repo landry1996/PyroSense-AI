@@ -1,6 +1,6 @@
 # PyroSense AI Platform - TODO & Progress Tracker
 
-## Status: MVP 1 Complete | MVP 2 Planned | Pilot Transition Planned
+## Status: MVP 1 Complete | MVP 2 Complete | Audit Done | Pilot Transition Planned
 
 ---
 
@@ -399,6 +399,13 @@
 - [x] docs/observability.md (stack, actuator, business metrics, tracing, logging, alerts, dashboards, config)
 - [x] docs/pilot-transition-plan.md (hardware, certification, cloud, insurance, pilot 10/100/1000, budget, roadmap 12 mois)
 - [x] docs/mvp2-plan.md (scope, bounded contexts, 22 user stories, roles, screens, endpoints, events, tables, rules, roadmap 6 sprints)
+- [x] docs/mvp2-testing-strategy.md (strategie tests MVP 2, inventaire 863+ backend + 132+ frontend, objectifs couverture, CI pipeline, regles critiques)
+- [x] docs/mvp2-local-run.md (Docker Compose MVP 2, profil mvp2, architecture, ports, modes dev, scripts, Grafana)
+- [x] docs/mvp2-observability.md (metriques metier, alertes Prometheus, tracing OTEL, logs JSON, Grafana dashboard, contraintes PII)
+- [x] docs/mvp2-overview.md (objectifs, perimetre, hors perimetre, dependances MVP 1, architecture, roles, chiffres cles)
+- [x] docs/production-readiness-mvp2.md (checklist 46 items, risques, distinction prototype/pilote/production)
+- [x] docs/audit-mvp2.md (audit securite complet, 4 vulnerabilites corrigees, 9 verifications strictes)
+- [x] docs/mvp2-production-readiness-checklist.md (criteres par etape prototype/pilote/production, 8 categories)
 - [x] README per module (11 service READMEs)
 
 ### Per-Service Structure
@@ -829,6 +836,292 @@
 - [ ] Certification complète + assurance RC Pro
 - [ ] Préparation commercialisation (tarification, support, SLA)
 
+### Phase 16: MVP 2 Security Hardening (DONE)
+
+#### Method Security — DONE
+- [x] Dashboard: @PreAuthorize method-level sur getRiskTrend, getRecentAlerts, getPriorityInterventions, getDeviceHealth
+- [x] Dashboard: ELECTRICIAN restreint a recent-alerts + priority-interventions (assignees)
+- [x] Dashboard: OCCUPANT restreint a recent-alerts uniquement
+- [x] Dashboard: SUPPORT_READONLY retire de overview, risky-buildings, risk-trend, device-health
+- [x] Reporting: @AllowedFields sur tous les endpoints POST de generation
+- [x] Notification: @AllowedFields sur preferences et policy PUT endpoints
+
+#### Anti Mass-Assignment — DONE
+- [x] AllowedFieldsInterceptor dans notification-service (enregistre dans WebMvcConfig)
+- [x] AllowedFieldsInterceptor dans maintenance-service (nouveau)
+- [x] AllowedFieldsInterceptor dans reporting-service (nouveau, ajoute a WebMvcConfig existant)
+- [x] @AllowedFields annotation sur DTOs: notification preferences, tenant policy, report generation
+
+#### Rate Limiting — DONE
+- [x] Reporting: 5 req/min par tenant sur generation POST (existant)
+- [x] Notification: 10 req/min par tenant sur retry POST (nouveau)
+- [x] Notification: 20 req/min par tenant sur preferences PUT (nouveau)
+- [x] RateLimitInterceptor enregistre dans WebMvcConfig notification-service
+
+#### Sensitive Data Masking — DONE
+- [x] Notification failureReason masque quand contient Exception ou >200 chars
+- [x] Audit logs: PII masquee (phone, email, password, token) dans JdbcAuditLogRepository
+- [x] userAgent stocke mais non expose dans API audit
+
+#### PDF Download Protection — DONE
+- [x] Token 32 bytes SecureRandom, 15min TTL, single-use (existant)
+- [x] Headers securite: X-Content-Type-Options nosniff, Cache-Control no-store, Pragma no-cache
+- [x] Content-Disposition attachment (force telechargement)
+- [x] Report ID verifie contre token report ID
+
+#### Tenant Isolation Tests — DONE
+- [x] DashboardTenantIsolationTest (5 tests: overview query current tenant, risky-buildings, risk-trend, alerts, no-context fail)
+- [x] ReportTenantIsolationTest (5 tests: list current tenant, cross-tenant rejected, same-tenant allowed, insurer blocked, electrician blocked)
+- [x] InterventionTenantIsolationTest (4 tests: list, kanban, statistics, no-context fail)
+- [x] NotificationTenantIsolationTest (5 tests: list, no-context, electrician blocked, occupant blocked, retry blocked)
+
+#### Access Denied Tests — DONE
+- [x] DashboardSecurityTest enrichi: electrician refus overview/risk-trend/device-health, support-readonly refus overview/risk-trend, occupant refus overview
+- [x] ReportTenantIsolationTest: insurance_partner et electrician refus list
+- [x] NotificationTenantIsolationTest: electrician/occupant refus list, electrician refus retry
+
+#### Documentation — DONE
+- [x] docs/mvp2-security.md (matrice acces corrigee, rate limiting, anti mass-assignment, PDF protection, masquage)
+
+### Phase 21: MVP 2 Documentation Finale (DONE)
+
+#### Documents Crees — DONE
+- [x] docs/mvp2-overview.md (objectifs, perimetre, hors perimetre, dependances MVP 1, architecture, roles, chiffres)
+- [x] docs/production-readiness-mvp2.md (checklist 46 items, risques techniques, distinction prototype/pilote/production)
+
+#### Documents Existants Couvrant le Scope — DEJA FAIT
+- [x] docs/dashboard-api.md + docs/frontend-dashboard.md (ecrans, roles, endpoints, regles UX)
+- [x] docs/maintenance-service.md + docs/alert-to-intervention-workflow.md (cycle de vie, regles, SLA, workflow)
+- [x] docs/reporting-service.md + docs/pdf-templates.md (types rapports, contenu, securite, limites legales)
+- [x] docs/notification-service.md + docs/notification-templates.md + docs/notification-rules.md (canaux, templates, preferences, anti-spam)
+- [x] docs/mvp2-security.md + docs/audit.md (RBAC, tenant isolation, audit, donnees personnelles)
+- [x] docs/mvp2-events.md (topics Kafka, events, versioning, idempotence)
+- [x] docs/mvp2-testing-strategy.md (strategie tests, comment lancer, couverture cible)
+- [x] docs/mvp2-local-run.md (Docker, variables, monitoring, demarrage local)
+
+#### README.md — DONE
+- [x] Section MVP 2 ajoutee (demarrage rapide, endpoints principaux, comptes test)
+- [x] Table documentation reorganisee (Architecture, Operations, MVP 2, Guides)
+- [x] Profil Docker mvp2 documente
+
+#### TODO.md — DONE
+- [x] Phases 16-21 marquees DONE
+- [x] Risques techniques listes
+- [x] Prochaine etape MVP 3 proposee
+
+### Phase 20: MVP 2 Observabilite Complete (DONE)
+
+#### Metriques Metier — DONE
+- [x] Dashboard: overview.requests, overview.latency, cache.hits, cache.misses, events.processed
+- [x] Maintenance: interventions.created, interventions.completed, interventions.overdue (gauge), events.processed, dlq.events
+- [x] Reporting: reports.requested, reports.generated, reports.failed, generation.duration, downloads, downloads.denied
+- [x] Notification: sent, failed, suppressed, delivery.duration, events.processed, dlq.events
+- [x] Securite: access.denied, suspicious.tenant.access, report.downloads.denied (sur chaque service)
+
+#### Actuator + Micrometer + Prometheus — DONE
+- [x] Dashboard service: management config complete (tracing, OTLP, metrics tags, histogram)
+- [x] Maintenance service: deja configure (verifie)
+- [x] Reporting service: deja configure (verifie)
+- [x] Notification service: deja configure (verifie)
+- [x] ObservabilityConfig.java avec metriques metier dans chaque service
+- [x] Prometheus scrape job pour dashboard-service (port 8088)
+
+#### Logs Structures JSON — DONE
+- [x] Dashboard: logback-spring.xml (JSON docker/prod, texte local/test, traceId/spanId)
+- [x] Maintenance: logback-spring.xml (deja en place)
+- [x] Reporting: logback-spring.xml (deja en place)
+- [x] Notification: logback-spring.xml (deja en place)
+- [x] MDC: traceId, spanId, correlationId, tenantId dans tous les logs
+
+#### Correlation ID + Tracing OpenTelemetry — DONE
+- [x] X-Correlation-Id genere par gateway, propage a tous les services
+- [x] W3C traceparent: propagation automatique (Micrometer Tracing bridge)
+- [x] Kafka headers: trace context propage
+- [x] OTLP endpoint configure sur tous les services MVP 2
+- [x] Sampling configurable: TRACING_SAMPLING (defaut 1.0, recommande 0.1 en prod)
+
+#### Alertes Prometheus — DONE (7 nouvelles regles)
+- [x] NotificationFailuresHigh: rate(failed) > 0.5/s pendant 3m
+- [x] ReportGenerationFailures: > 3 echecs en 15m
+- [x] KafkaDlqNonEmpty: events en DLQ detectes
+- [x] InterventionOverdueHigh: > 10 overdue pendant 5m
+- [x] ApiErrorRateHigh: 5xx > 5% pendant 3m (par service MVP 2)
+- [x] ReportDownloadDeniedSpike: > 10 refus en 5m
+- [x] SuspiciousTenantAccessDetected: > 5 tentatives cross-tenant (CRITICAL)
+
+#### Grafana Dashboard — DONE
+- [x] mvp2-services.json: sante, HTTP rate/latency, Kafka lag, alertes, interventions, notifications, JVM, reports, cache
+
+#### Contraintes Respectees — DONE
+- [x] Pas de PII dans les logs (masquage regex: phone, email, password, token)
+- [x] Pas de secret dans les metriques/logs
+- [x] Pas de payload notification dans les logs
+- [x] Tags metriques: service/status/channel/severity uniquement (jamais tenantId/userId)
+
+#### Documentation — DONE
+- [x] docs/mvp2-observability.md (metriques, alertes, tracing, logs, Grafana, contraintes)
+
+### Phase 19: MVP 2 Docker Compose & Local Run (DONE)
+
+#### Dockerfile — DONE
+- [x] pyrosense-dashboard-service/Dockerfile (multi-stage, eclipse-temurin:21, non-root, healthcheck port 8088)
+
+#### docker-compose.yml — DONE
+- [x] Profil `mvp2` ajoute: gateway, dashboard-service, alerting, maintenance, reporting, notification, frontend
+- [x] dashboard-service: PostgreSQL pyrosense_dashboard, Redis, Kafka, port 8088
+- [x] dashboard-frontend: nginx, proxy /api/ vers gateway, port 4200
+- [x] CORS_ORIGINS: http://localhost:4200,http://localhost:3000
+- [x] DASHBOARD_SERVICE_URL ajoute au gateway
+- [x] pyrosense_dashboard database dans init-multiple-dbs
+- [x] Healthchecks sur tous les services
+
+#### docker-compose.override.yml — DONE
+- [x] dashboard-service: debug port 5020
+
+#### .env.docker & .env.example — DONE
+- [x] DASHBOARD_SERVICE_URL ajoute
+- [x] CORS_ORIGINS inclut port 4200
+
+#### Scripts — DONE
+- [x] scripts/start-mvp2-local.sh (--no-build, --infra-only)
+- [x] scripts/stop-mvp2-local.sh (--remove)
+- [x] scripts/reset-mvp2-local.sh (--force)
+
+#### Monitoring — DONE
+- [x] Prometheus: scrape job pyrosense-dashboard (port 8088 + host.docker.internal)
+- [x] Grafana dashboard: mvp2-services.json (sante, latence, Kafka lag, alertes, interventions, cache)
+
+#### Documentation — DONE
+- [x] docs/mvp2-local-run.md (architecture, ports, modes dev, flux Kafka, healthchecks, logs, troubleshooting)
+
+### Phase 18: MVP 2 Strategie de Tests Complete (DONE)
+
+#### Objectifs de Couverture — DONE
+- [x] Domain/value objects: >95% (logique metier pure)
+- [x] Application/use cases: >85% (orchestration avec ports mockes)
+- [x] Adapters: >70% (verifies via tests d'integration)
+- [x] Regles critiques (securite, dedup, SLA): >95%
+- [x] Frontend services/guards/pipes: >85%
+- [x] Frontend composants: >75%
+
+#### Tests Backend Existants — Inventaire DONE
+- [x] 863+ tests backend repartis sur 10 services
+- [x] Tests unitaires domain: 389 tests (state machines, value objects, events)
+- [x] Tests use case: 125 tests (orchestration avec mocks)
+- [x] Tests REST (@WebMvcTest): 34 tests (controllers + DTO mapping)
+- [x] Tests securite: 50 tests (RBAC, tenant isolation, rate limiting)
+- [x] Tests ArchUnit: 87+ regles (hexagonal, naming, no cycles)
+- [x] Tests integration: 178 tests (PostgreSQL, Kafka, Redis, PDF)
+
+#### Tests Frontend Angular — Inventaire DONE
+- [x] 132+ tests frontend (composants, services, guards, interceptors, pipes)
+- [x] 12 fichiers composants .spec.ts (MetricCard, ConfirmDialog, StatusChip, SeverityBadge, etc.)
+- [x] 5 fichiers services .spec.ts (ApiService, DashboardApi, AlertApi, etc.)
+- [x] 4 fichiers interceptors .spec.ts (auth, tenant, correlation, error)
+- [x] 3 fichiers guards .spec.ts (auth, role, unsaved-changes)
+- [x] 2 fichiers pipes .spec.ts (risk-level, relative-time)
+- [x] 6 fichiers E2E Cypress (dashboard, alerts, interventions, buildings, reports, settings)
+
+#### Pipeline CI/CD — DONE
+- [x] 7 jobs GitHub Actions: code-quality, build-and-test, integration-tests, coverage, security-scan, frontend-tests, docker-build
+- [x] Concurrence: cancel-in-progress meme branche
+- [x] Cache: Maven .m2 + npm node_modules
+- [x] Artefacts: test results (7j), coverage (14j), OWASP reports (14j)
+- [x] Frontend CI: ng test ChromeHeadless + code-coverage artifact
+
+#### Regles Critiques (>95%) — DONE
+- [x] Alert state machine (14 + 23 tests)
+- [x] Intervention state machine + diagnostic required (15 + 6 tests)
+- [x] CRITICAL alert → auto-intervention (5 workflow tests)
+- [x] Concurrent deduplication 10 threads (1 ConcurrencyTest)
+- [x] Channel routing policy severity → channels (6 tests)
+- [x] Tenant isolation cross-tenant rejected (19 tests across 4 services)
+- [x] Rate limiting enforcement (6 tests)
+- [x] Download token single-use + expiry (7 tests)
+- [x] Kafka idempotent consumer dedup (4 tests)
+- [x] SLA breach detection (5 tests)
+- [x] Quiet hours + critical override (15 tests)
+
+#### Documentation — DONE
+- [x] docs/mvp2-testing-strategy.md (strategie complete, inventaire, objectifs, CI, commandes)
+
+### Phase 17: MVP 2 Kafka Event Integration (DONE)
+
+#### Event Envelope Enrichment — DONE
+- [x] IntegrationEvent enrichi: version, tenantId, correlationId, causationId, sourceService
+- [x] Builder pattern pour construction fluide
+- [x] Constructeur deprece 5-args pour backward compatibility
+- [x] EventMetadata helper pour extraction metadata
+- [x] IdempotentEventConsumer interface dans shared-kernel
+- [x] Tests unitaires IntegrationEventTest (9 tests)
+
+#### Topics Standardises — DONE
+- [x] pyrosense.alerts.events (alerting-service output)
+- [x] pyrosense.maintenance.events (maintenance-service output)
+- [x] pyrosense.reports.events (reporting-service output)
+- [x] pyrosense.notifications.events (notification-service output)
+- [x] pyrosense.dead-letter.events (DLQ centralise)
+- [x] Topics configures via application.yml avec variables d'environnement
+
+#### Nouveaux Domain Events — DONE
+- [x] NotificationSentEvent (notification.notification.sent)
+- [x] NotificationFailedEvent (notification.notification.failed)
+- [x] NotificationEventPublisherPort + KafkaNotificationEventPublisher
+
+#### KafkaConfig Uniformise — DONE
+- [x] Alerting: DLQ + ExponentialBackOff + idempotent producer + acks=all + observation
+- [x] Maintenance: DLQ + ExponentialBackOff + idempotent producer + acks=all + observation
+- [x] Reporting: idempotent producer + acks=all + observation
+- [x] Notification: ExponentialBackOff (remplace FixedBackOff) + idempotent producer + observation
+
+#### Publishers Enrichis — DONE
+- [x] KafkaAlertEventPublisher: builder, eventId as key, correlationId/tenantId, structured logs
+- [x] KafkaMaintenanceEventPublisher: builder, eventId as key, correlationId/tenantId, structured logs
+- [x] KafkaReportEventPublisher: builder, eventId as key, correlationId/tenantId, structured logs
+- [x] KafkaNotificationEventPublisher: nouveau, builder, output vers pyrosense.notifications.events
+
+#### Consumers Idempotents — DONE
+- [x] Maintenance KafkaAlertEventListener: dedup via recommendationRepository.findByAlertId
+- [x] Notification service: DeduplicationPort avec window configurable (30 min)
+- [x] IdempotentEventConsumer interface pour pattern reutilisable
+
+#### Tests d'Integration Kafka — DONE
+- [x] KafkaAlertEventPublisherIT (Testcontainers, verifie envelope enrichi + key)
+- [x] KafkaMaintenanceEventPublisherIT (Testcontainers, verifie correlationId + defaults)
+- [x] Dependances testcontainers ajoutees aux pom.xml alerting + maintenance
+
+#### Documentation — DONE
+- [x] docs/mvp2-events.md (topics, envelope, catalog, flows, config, observabilite)
+
+### Phase 22: Audit Complet MVP 2 (DONE)
+
+#### Vulnerabilites Corrigees — DONE
+- [x] CRITICAL: Electricien voyait toutes les interventions du tenant (filtre par assignee ajoute dans list/kanban)
+- [x] CRITICAL: Tenant spoofing via request body (tenantId retire des DTOs, TenantContext.require() partout)
+- [x] HIGH: Notifications critiques desactivables par utilisateur (criticalOverrideEnabled force a true)
+- [x] HIGH: RecommendationController accept/reject sans validation tenant (TenantId passe et verifie)
+
+#### Verifications Strictes — PASS
+- [x] Aucun controller ne depend d'un repository
+- [x] Le domaine ne depend pas de Spring
+- [x] Pas de logique metier dans Angular components
+- [x] Pas de secret dans Git
+- [x] Rapports proteges (download token single-use, 15min TTL)
+- [x] Notifications critiques non desactivables (apres fix)
+- [x] Interventions ne peuvent pas etre completees sans diagnostic
+- [x] Electricien ne voit que ses interventions (apres fix)
+- [x] Assureur ne voit que les rapports autorises
+
+#### Tests — DONE (485 backend tests passent)
+- [x] Maintenance: 99 tests, 0 failures
+- [x] Reporting: 125 tests, 0 failures
+- [x] Notification: 226 tests, 0 failures
+- [x] Dashboard: 35 tests, 0 failures
+
+#### Documentation — DONE
+- [x] docs/audit-mvp2.md (findings, corrections, verifications, bilan)
+- [x] docs/mvp2-production-readiness-checklist.md (criteres par etape)
+
 ---
 
 ## Architectural Decisions
@@ -864,5 +1157,85 @@
 | Risk Scoring | 8085 | local, docker, prod |
 | Alerting | 8086 | local, docker, prod |
 | Notification | 8087 | local, docker, prod |
+| Dashboard | 8088 | local, docker, prod |
 | Reporting | 8091 | local, docker, prod |
 | Maintenance | 8089 | local, docker, prod |
+| Frontend | 4200 | docker (nginx) |
+
+---
+
+## MVP 2 - Bilan
+
+### Ce qui est termine (Phases 6-21)
+
+| Domaine | Statut | Details |
+|---------|:------:|---------|
+| Dashboard Frontend (Angular 18) | FAIT | 12 ecrans, responsive, a11y, WebSocket temps reel |
+| Dashboard Backend (query API) | FAIT | 6 endpoints, cache Redis, invalidation Kafka |
+| Maintenance (interventions) | FAIT | Cycle de vie complet, workflow alerte→intervention, SLA, recommendations |
+| Reporting (rapports PDF) | FAIT | 4 types, PDF professionnel, download securise, signature SHA-256 |
+| Notifications (multi-canal) | FAIT | 5 canaux, 9 templates, preferences avancees, audit, anti-spam |
+| Securite MVP 2 | FAIT | RBAC 8 roles, tenant isolation 4 services, rate limiting, anti mass-assignment |
+| Kafka Integration | FAIT | 6 topics, envelope enrichi, DLQ, idempotence, Testcontainers IT |
+| Tests | FAIT | 863+ backend, 132+ frontend, ArchUnit, security, E2E Cypress |
+| Observabilite | FAIT | Metriques metier, tracing OTEL, logs JSON, 21 alertes Prometheus |
+| Docker Compose | FAIT | Profil mvp2, Dockerfile par service, scripts, Grafana dashboard |
+| Documentation | FAIT | 25+ documents, README enrichi, production readiness checklist |
+
+### Ce qui reste (non bloquant pour le prototype)
+
+- [ ] Fix MEDIUM: Identity-service Flyway migrations (replace in-memory repos)
+- [ ] ML-based anomaly detection service (NoOp adapter ready)
+- [ ] Federated learning module
+- [ ] Mobile push notifications (Firebase)
+- [ ] Keycloak realm export (users, roles, client configuration)
+- [ ] Contract tests Spring Cloud Contract
+- [ ] Load tests K6/Gatling (1000 devices)
+- [ ] Chaos testing
+
+---
+
+## Risques Techniques
+
+| # | Risque | Impact | Probabilite | Mitigation |
+|---|--------|--------|:-----------:|-----------|
+| 1 | Faux positifs > 5% sur donnees reelles | Perte confiance | Moyenne | Feedback loop false positive, phase labo obligatoire |
+| 2 | Seuils detection calibres sur simulation | Detection inefficace | Haute | Recalibration sur donnees terrain (3 mois minimum) |
+| 3 | PostgreSQL single-instance sans replicas | Perte donnees | Moyenne | Migration vers managed DB pour pilote |
+| 4 | Keycloak non configure (realm vide) | Pas d'auth en pilote | Haute | Script d'initialisation realm a creer |
+| 5 | ML absent (methodes statistiques) | Patterns complexes non detectes | Moyenne | Suffisant pour MVP, prevu MVP 3 |
+| 6 | Pas de HA / pas de DR | Indisponibilite | Moyenne | Acceptable pour pilote 10 capteurs |
+| 7 | Donnees simulees ≠ donnees reelles | Architecture non validee sous charge | Haute | Tests de charge obligatoires avant 100+ capteurs |
+| 8 | JaCoCo "Unsupported class file major version 69" | Coverage reports indisponibles | Faible | Upgrader JaCoCo quand fix disponible |
+
+---
+
+## Proposition MVP 3
+
+### Objectif : Pilote Terrain + Intelligence
+
+| Sprint | Duree | Livrable |
+|--------|-------|---------|
+| MVP 3.1 | 4 sem | Keycloak realm complet + script init + realm export |
+| MVP 3.2 | 4 sem | ML v1: Isolation Forest sur donnees telemetrie (MachineLearningInferencePort) |
+| MVP 3.3 | 4 sem | Application mobile PWA (notifications push, vue alertes) |
+| MVP 3.4 | 4 sem | Load testing (K6, 1000 devices, SLA validates) |
+| MVP 3.5 | 4 sem | Infrastructure cloud (Terraform, K8s, managed services) |
+| MVP 3.6 | 4 sem | Firmware IoT prototype (ESP32 + MQTT + certificats) |
+
+### Pre-requis MVP 3
+
+1. Donnees terrain reelles (minimum 3 mois de collecte pour calibration ML)
+2. Selection hardware capteurs (decision technique)
+3. Cloud provider selectionne (decision budgetaire)
+4. Equipe firmware disponible (competence embarque)
+
+### Ce que MVP 3 ne couvre PAS
+
+- Certification electrique (IEC 61439, NF C 15-100) — necessite un organisme notifie
+- Assurance RC Pro — processus juridique independant
+- Commercialisation (tarification, support, SLA contractuels) — decision business
+
+### Documentation MVP 3
+
+- [x] docs/mvp3-transition.md (plan complet : 15 sections, roadmap 6 sprints, risques, protocoles, feedback loop, budget)

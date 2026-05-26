@@ -69,6 +69,11 @@ pyrosense:
       info-deadline: 30d
       escalation-interval: 4h
     kafka:
-      scoring-topic: scoring-events
-      analysis-topic: analysis-events
-      output-topic: alerting-events
+      scoring-topic: ${KAFKA_TOPIC_SCORING:pyrosense.scoring.events}
+      analysis-topic: ${KAFKA_TOPIC_ANALYSIS:pyrosense.analysis.events}
+      output-topic: ${KAFKA_TOPIC_ALERTS:pyrosense.alerts.events}
+      dlq-topic: ${KAFKA_TOPIC_DLQ:pyrosense.dead-letter.events}
+      retry:
+        max-attempts: 3
+        backoff-ms: 1000
+        backoff-multiplier: 2
