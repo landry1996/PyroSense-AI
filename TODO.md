@@ -492,6 +492,41 @@
 - [x] Integration test: JdbcDashboardReadModelIntegrationTest (Testcontainers PostgreSQL, 9 tests)
 - [x] Documentation: docs/dashboard-api.md
 
+### Phase 9: Frontend — Conformite Spec (ecarts combles)
+
+#### Organisation & Composants manquants — DONE
+- [x] core/models/ directory: interfaces TypeScript centralisees (device, alert, intervention, building, report, notification, risk, user)
+- [x] MetricCardComponent: carte KPI reutilisable (icon, value, label, link, variant)
+- [x] ConfirmDialogComponent: dialog Material pour confirmations destructives (remplace window.confirm)
+- [x] StatusChipComponent: chip colore par statut (OPEN, IN_PROGRESS, RESOLVED, etc.)
+- [x] shared/pipes/: RiskLevelPipe, RiskColorPipe, RelativeTimePipe
+- [x] shared/utils/: risk.utils.ts (getRiskLevel, getRiskColor, getSeverityColor)
+- [x] unsavedChangesGuard migre vers MatDialog (ConfirmDialogComponent)
+
+#### Layout — DONE
+- [x] Tenant name affiche dans la topbar (business icon + ID tronque)
+- [x] User menu complet (MatMenu: nom, email, parametres, deconnexion)
+- [x] Notification bell avec routerLink vers /notifications
+
+#### Tests unitaires — DONE (109 tests total, 107 passent, 2 pre-existants flaky)
+- [x] auth.interceptor.spec.ts (2 tests)
+- [x] correlation.interceptor.spec.ts (2 tests)
+- [x] tenant.interceptor.spec.ts (2 tests)
+- [x] error.interceptor.spec.ts (4 tests)
+- [x] role.guard.spec.ts (3 tests)
+- [x] api.service.spec.ts (10 tests)
+- [x] metric-card.component.spec.ts (4 tests)
+- [x] confirm-dialog.component.spec.ts (4 tests)
+- [x] status-chip.component.spec.ts (4 tests)
+- [x] severity-badge.component.spec.ts (4 tests)
+- [x] risk-level.pipe.spec.ts (6 tests)
+- [x] relative-time.pipe.spec.ts (5 tests)
+- [x] unsaved-changes.guard.spec.ts refactorise pour MatDialog (4 tests)
+
+#### Documentation — DONE
+- [x] pyrosense-dashboard/README.md (stack, structure, commandes, architecture, roles, Docker)
+- [x] docs/frontend-dashboard.md (architecture, flux auth, composants, ecrans, pipes, erreurs, WS, responsive, securite, tests)
+
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 
 #### Mois 1-3 — Prototype Labo

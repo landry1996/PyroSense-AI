@@ -9,9 +9,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { TenantService } from '../services/tenant.service';
 import { WebSocketService, WsEvent } from '../services/websocket.service';
 import { LiveAlertToastComponent, LiveAlertData } from '../../shared/components/live-alert-toast.component';
 
@@ -29,6 +31,7 @@ import { LiveAlertToastComponent, LiveAlertData } from '../../shared/components/
     MatBadgeModule,
     MatSnackBarModule,
     MatTooltipModule,
+    MatMenuModule,
   ],
   template: `
     <mat-sidenav-container class="layout-container">
@@ -96,19 +99,38 @@ import { LiveAlertToastComponent, LiveAlertData } from '../../shared/components/
               <mat-icon>menu</mat-icon>
             </button>
           }
+          <span class="tenant-name" *ngIf="auth.currentUser()?.tenantId">
+            <mat-icon class="tenant-icon">business</mat-icon>
+            {{ tenantDisplayName() }}
+          </span>
           <span class="spacer"></span>
           <span class="connection-indicator" [class.connected]="ws.connected()" [class.reconnecting]="ws.reconnecting()"
                 [matTooltip]="ws.connected() ? 'Temps reel actif' : ws.reconnecting() ? 'Reconnexion...' : 'Deconnecte'">
             <mat-icon>{{ ws.connected() ? 'wifi' : 'wifi_off' }}</mat-icon>
           </span>
           <button mat-icon-button [matBadge]="liveAlertCount()" [matBadgeHidden]="liveAlertCount() === 0"
-                  matBadgeColor="warn" matBadgeSize="small"
+                  matBadgeColor="warn" matBadgeSize="small" routerLink="/notifications"
                   aria-label="Notifications non lues">
             <mat-icon>notifications</mat-icon>
           </button>
-          <button mat-icon-button (click)="auth.logout()" aria-label="Deconnexion">
-            <mat-icon>logout</mat-icon>
+          <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Menu utilisateur">
+            <mat-icon>account_circle</mat-icon>
           </button>
+          <mat-menu #userMenu="matMenu">
+            <div class="user-menu-header" mat-menu-item disabled>
+              <strong>{{ auth.currentUser()?.fullName }}</strong>
+              <small>{{ auth.currentUser()?.email }}</small>
+            </div>
+            <mat-divider></mat-divider>
+            <button mat-menu-item routerLink="/settings">
+              <mat-icon>settings</mat-icon>
+              <span>Parametres</span>
+            </button>
+            <button mat-menu-item (click)="auth.logout()">
+              <mat-icon>logout</mat-icon>
+              <span>Deconnexion</span>
+            </button>
+          </mat-menu>
         </mat-toolbar>
         <main class="main-content">
           <ng-content />
@@ -176,9 +198,17 @@ import { LiveAlertToastComponent, LiveAlertData } from '../../shared/components/
     .connection-indicator.connected { color: #4caf50; opacity: 1; }
     .connection-indicator.reconnecting { color: #ff9800; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    .tenant-name {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 14px; color: rgba(255,255,255,0.9); margin-left: 8px;
+    }
+    .tenant-icon { font-size: 18px; width: 18px; height: 18px; opacity: 0.8; }
+    .user-menu-header { display: flex; flex-direction: column; line-height: 1.4; }
+    .user-menu-header small { color: rgba(0,0,0,0.54); font-size: 12px; }
     @media (max-width: 600px) {
       .main-content { padding: 12px; }
       .sidenav { width: 200px; }
+      .tenant-name { display: none; }
     }
   `],
 })
@@ -188,12 +218,18 @@ export class LayoutComponent implements OnInit, OnDestroy {
   liveAlertCount = signal(0);
   private destroy$ = new Subject<void>();
 
+  tenantDisplayName = signal('');
+
   constructor(
     public auth: AuthService,
     public ws: WebSocketService,
+    private tenant: TenantService,
     private breakpointObserver: BreakpointObserver,
     private snackBar: MatSnackBar,
-  ) {}
+  ) {
+    const tid = this.tenant.getCurrentTenantId();
+    this.tenantDisplayName.set(tid ? `Tenant ${tid.slice(0, 8)}` : '');
+  }
 
   ngOnInit(): void {
     this.breakpointObserver.observe('(max-width: 960px)')
