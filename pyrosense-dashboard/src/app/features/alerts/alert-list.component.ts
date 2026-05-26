@@ -12,10 +12,11 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil } from 'rxjs';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/services/api.service';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
 @Component({
   selector: 'app-alert-list',
@@ -25,7 +26,8 @@ import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/ser
     MatTableModule, MatButtonModule, MatIconModule,
     MatSelectModule, MatFormFieldModule, MatInputModule,
     MatDatepickerModule, MatNativeDateModule,
-    MatPaginatorModule, MatCardModule, MatProgressSpinnerModule,
+    MatPaginatorModule, MatCardModule,
+    SkeletonLoaderComponent, EmptyStateComponent,
   ],
   template: `
     <div class="alerts-container">
@@ -105,7 +107,9 @@ import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/ser
       </div>
 
       @if (loading()) {
-        <mat-spinner diameter="40"></mat-spinner>
+        <app-skeleton type="table" [count]="5" [columns]="6" />
+      } @else if (alerts().length === 0) {
+        <app-empty-state icon="check_circle" title="Aucune alerte" message="Tous les systemes fonctionnent normalement." />
       } @else {
         <table mat-table [dataSource]="alerts()" class="alerts-table">
           <ng-container matColumnDef="severity">
@@ -200,6 +204,15 @@ import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/ser
     .status-false_positive { background: #fafafa; color: #616161; }
     .sla-breached { color: #d32f2f; }
     .sla-ok { color: #4caf50; }
+    @media (max-width: 960px) {
+      .filters-row { flex-wrap: wrap; }
+      .stats-row { gap: 8px; }
+      .stat-card { min-width: 120px; }
+    }
+    @media (max-width: 600px) {
+      .filters-row { flex-direction: column; gap: 8px; }
+      .stats-row { flex-direction: column; }
+    }
   `],
 })
 export class AlertListComponent implements OnInit, OnDestroy {

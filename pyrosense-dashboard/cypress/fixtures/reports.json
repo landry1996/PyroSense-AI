@@ -1,0 +1,16 @@
+[
+  {
+    "id": "r1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "type": "MONTHLY_REPORT",
+    "status": "GENERATED",
+    "reportNumber": "MH-202605-00001",
+    "createdAt": "2026-05-01T00:00:00Z"
+  },
+  {
+    "id": "r1a2b3c4-aaaa-bbbb-cccc-ddddeeee0002",
+    "type": "COMPLIANCE_CERTIFICATE",
+    "status": "GENERATED",
+    "reportNumber": "CC-202605-00001",
+    "createdAt": "2026-05-15T00:00:00Z"
+  }
+]

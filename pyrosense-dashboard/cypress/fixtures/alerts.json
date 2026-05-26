@@ -1,0 +1,35 @@
+[
+  {
+    "id": "a1b2c3d4-1111-2222-3333-444455556666",
+    "title": "Arc electrique detecte - Tableau A",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "type": "MICRO_ARC_DETECTED",
+    "deviceId": "d1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "buildingId": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "createdAt": "2026-05-20T10:30:00Z",
+    "slaBreached": false
+  },
+  {
+    "id": "a1b2c3d4-1111-2222-3333-444455557777",
+    "title": "Surchauffe circuit 3",
+    "severity": "WARNING",
+    "status": "ACKNOWLEDGED",
+    "type": "OVERHEATING",
+    "deviceId": "d1a2b3c4-aaaa-bbbb-cccc-ddddeeee0002",
+    "buildingId": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "createdAt": "2026-05-19T14:15:00Z",
+    "slaBreached": false
+  },
+  {
+    "id": "a1b2c3d4-1111-2222-3333-444455558888",
+    "title": "Distorsion harmonique elevee",
+    "severity": "INFO",
+    "status": "RESOLVED",
+    "type": "HARMONIC_DISTORTION",
+    "deviceId": "d1a2b3c4-aaaa-bbbb-cccc-ddddeeee0003",
+    "buildingId": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0002",
+    "createdAt": "2026-05-18T08:00:00Z",
+    "slaBreached": false
+  }
+]

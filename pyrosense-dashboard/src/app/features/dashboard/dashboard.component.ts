@@ -4,8 +4,8 @@ import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
 import { DashboardStateService } from './dashboard-state.service';
 import { Chart, registerables } from 'chart.js';
 
@@ -16,20 +16,27 @@ Chart.register(...registerables);
   standalone: true,
   imports: [
     CommonModule, RouterModule,
-    MatCardModule, MatIconModule, MatButtonModule, MatProgressSpinnerModule,
-    RiskGaugeComponent,
+    MatCardModule, MatIconModule, MatButtonModule,
+    RiskGaugeComponent, SkeletonLoaderComponent,
   ],
   template: `
     <div class="dashboard-container">
       <h1>Dashboard</h1>
 
       @if (state.loading()) {
-        <div class="loading-container">
-          <mat-spinner diameter="40" />
+        <div class="stats-grid">
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <mat-card class="stat-card"><mat-card-content><app-skeleton type="stat" /></mat-card-content></mat-card>
+          }
+        </div>
+        <div class="bottom-row">
+          <mat-card><mat-card-content><app-skeleton type="card" /></mat-card-content></mat-card>
+          <mat-card><mat-card-content><app-skeleton type="card" [count]="5" /></mat-card-content></mat-card>
         </div>
       } @else {
         <div class="stats-grid">
-          <mat-card class="stat-card clickable" routerLink="/buildings">
+          <mat-card class="stat-card clickable" routerLink="/buildings" role="link"
+                    [attr.aria-label]="'Batiments: ' + state.summary().totalBuildings">
             <mat-card-content>
               <mat-icon class="stat-icon buildings">apartment</mat-icon>
               <div class="stat-value">{{ state.summary().totalBuildings }}</div>
@@ -37,7 +44,8 @@ Chart.register(...registerables);
             </mat-card-content>
           </mat-card>
 
-          <mat-card class="stat-card clickable" routerLink="/devices">
+          <mat-card class="stat-card clickable" routerLink="/devices" role="link"
+                    [attr.aria-label]="'Capteurs actifs: ' + state.summary().activeDevices + ' sur ' + state.summary().totalDevices">
             <mat-card-content>
               <mat-icon class="stat-icon devices">sensors</mat-icon>
               <div class="stat-value">{{ state.summary().activeDevices }}/{{ state.summary().totalDevices }}</div>
@@ -103,7 +111,7 @@ Chart.register(...registerables);
             </mat-card-header>
             <mat-card-content>
               <div class="chart-container">
-                <canvas #riskChart></canvas>
+                <canvas #riskChart role="img" aria-label="Graphique d'evolution du score de risque sur 30 jours"></canvas>
               </div>
             </mat-card-content>
           </mat-card>
@@ -113,7 +121,6 @@ Chart.register(...registerables);
   `,
   styles: [`
     .dashboard-container { max-width: 1200px; }
-    .loading-container { display: flex; justify-content: center; padding: 64px; }
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

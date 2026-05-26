@@ -1,0 +1,15 @@
+[
+  {
+    "id": "n1",
+    "tenantId": "tenant-001",
+    "recipientId": "user-001",
+    "channel": "EMAIL",
+    "severity": "CRITICAL",
+    "subject": "Alerte critique: Arc electrique",
+    "status": "SENT",
+    "retryCount": 0,
+    "createdAt": "2026-05-20T10:31:00Z",
+    "sentAt": "2026-05-20T10:31:05Z",
+    "failureReason": null
+  }
+]

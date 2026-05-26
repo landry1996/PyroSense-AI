@@ -1,0 +1,15 @@
+{
+  "id": "a1b2c3d4-1111-2222-3333-444455556666",
+  "title": "Arc electrique detecte - Tableau A",
+  "severity": "CRITICAL",
+  "status": "OPEN",
+  "type": "MICRO_ARC_DETECTED",
+  "description": "Detection de micro-arcs recurrents sur le circuit principal du tableau A",
+  "deviceId": "d1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+  "buildingId": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+  "createdAt": "2026-05-20T10:30:00Z",
+  "slaBreached": false,
+  "comments": [
+    { "id": "c1", "author": "admin", "text": "Verification en cours", "createdAt": "2026-05-20T11:00:00Z" }
+  ]
+}

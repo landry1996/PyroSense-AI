@@ -1,0 +1,12 @@
+[
+  {
+    "id": "i1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "type": "CORRECTIVE",
+    "status": "IN_PROGRESS",
+    "priority": "HIGH",
+    "deviceId": "d1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "alertId": "a1b2c3d4-1111-2222-3333-444455556666",
+    "description": "Remplacement connexion desserree tableau A",
+    "createdAt": "2026-05-21T09:00:00Z"
+  }
+]

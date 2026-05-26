@@ -15,6 +15,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { Subject, takeUntil } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
+import { HasUnsavedChanges } from '../../core/guards/unsaved-changes.guard';
 
 interface AlertThresholds {
   temperatureMax: number;
@@ -253,7 +254,7 @@ interface TenantSettings {
     .info-value { font-size: 15px; font-weight: 500; }
   `],
 })
-export class SettingsComponent implements OnInit, OnDestroy {
+export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   private destroy$ = new Subject<void>();
   private baseUrl = '/api/v1';
 
@@ -277,6 +278,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     public auth: AuthService,
     private snackBar: MatSnackBar,
   ) {}
+
+  hasUnsavedChanges(): boolean { return this.thresholdsDirty(); }
 
   ngOnInit(): void {
     this.loadSettings();

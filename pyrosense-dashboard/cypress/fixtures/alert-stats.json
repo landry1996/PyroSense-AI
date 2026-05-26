@@ -1,0 +1,8 @@
+{
+  "totalOpen": 5,
+  "totalAcknowledged": 2,
+  "totalInProgress": 1,
+  "totalResolved": 10,
+  "criticalOpen": 2,
+  "slaBreached": 0
+}

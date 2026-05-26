@@ -1,0 +1,18 @@
+[
+  {
+    "id": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0001",
+    "name": "Immeuble Voltaire",
+    "address": "12 rue Voltaire, 75011 Paris",
+    "riskLevel": "AT_RISK",
+    "deviceCount": 10,
+    "riskScore": 55
+  },
+  {
+    "id": "b1a2b3c4-aaaa-bbbb-cccc-ddddeeee0002",
+    "name": "Residence Les Lilas",
+    "address": "8 avenue des Lilas, 93260 Les Lilas",
+    "riskLevel": "OK",
+    "deviceCount": 15,
+    "riskScore": 22
+  }
+]
