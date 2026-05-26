@@ -17,6 +17,7 @@ public class LoggingAuditLogAdapter implements AuditLogPort {
     @Override
     public void log(TenantId tenantId, UserId actor, UUID interventionId, String action, String details) {
         log.info("AUDIT [tenant={}, actor={}, intervention={}, action={}] {}",
-                tenantId.value(), actor.value(), interventionId, action, details);
+                tenantId.value(), actor != null ? actor.value() : "system",
+                interventionId != null ? interventionId : "N/A", action, details);
     }
 }

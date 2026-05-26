@@ -1,12 +1,8 @@
 package com.pyrosense.maintenance.config;
 
-import com.pyrosense.maintenance.application.port.out.InterventionRepositoryPort;
-import com.pyrosense.maintenance.application.port.out.MaintenanceEventPublisherPort;
-import com.pyrosense.maintenance.application.port.out.RiskScoreReevaluationPublisherPort;
-import com.pyrosense.maintenance.application.usecase.AddInterventionCommentService;
-import com.pyrosense.maintenance.application.usecase.CreateInterventionService;
-import com.pyrosense.maintenance.application.usecase.GetInterventionService;
-import com.pyrosense.maintenance.application.usecase.ManageInterventionService;
+import com.pyrosense.maintenance.application.port.in.CreateInterventionUseCase;
+import com.pyrosense.maintenance.application.port.out.*;
+import com.pyrosense.maintenance.application.usecase.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -34,5 +30,13 @@ public class UseCaseConfig {
     @Bean
     public AddInterventionCommentService addInterventionCommentService(InterventionRepositoryPort repository) {
         return new AddInterventionCommentService(repository);
+    }
+
+    @Bean
+    public ManageRecommendationService manageRecommendationService(RecommendationRepositoryPort recommendationRepository,
+                                                                    CreateInterventionUseCase createInterventionUseCase,
+                                                                    MaintenanceEventPublisherPort eventPublisher,
+                                                                    AuditLogPort auditLog) {
+        return new ManageRecommendationService(recommendationRepository, createInterventionUseCase, eventPublisher, auditLog);
     }
 }

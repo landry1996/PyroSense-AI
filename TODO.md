@@ -200,7 +200,7 @@
 - [x] application-secret.example.yml with Vault migration path
 - [x] docs/security.md: STRIDE threat model, OWASP ASVS, role/permission matrix, IoT rules, attack protections
 
-### Maintenance Service (FULLY IMPLEMENTED - 57 tests passing)
+### Maintenance Service (FULLY IMPLEMENTED - 84 tests passing)
 - [x] Domain model: Intervention aggregate (state machine), InterventionStatus (6 states), InterventionType, InterventionResult (6 outcomes incl. FALSE_POSITIVE), InterventionPriority, FieldDiagnostic, RiskImpact, InterventionComment
 - [x] State machine: CREATED → PLANNED → ASSIGNED → IN_PROGRESS → COMPLETED (+ CANCELLED from any non-terminal)
 - [x] Business rules: CRITICAL/WARNING alerts auto-create interventions, one per alert (unique constraint), severity → type/priority mapping
@@ -572,6 +572,57 @@
 
 #### Documentation — DONE
 - [x] docs/maintenance-service.md (architecture, lifecycle, priorities, results, business rules, REST API, Kafka events, schema, roles, config)
+
+### Phase 11: Alert → Intervention Workflow Complet (84 tests passing)
+
+#### Domain Model — DONE
+- [x] InterventionRecommendation (PENDING → ACCEPTED | REJECTED | EXPIRED)
+- [x] RecommendationStatus enum (PENDING, ACCEPTED, REJECTED, EXPIRED)
+- [x] SlaPolicy record (response + resolution deadlines per priority)
+- [x] InterventionPriorityPolicy (severity × riskScore → priority + type + SLA)
+
+#### Workflow Logic — DONE
+- [x] CRITICAL alert → auto-creates intervention (URGENT, SLA 4h response/24h resolution)
+- [x] WARNING alert → creates InterventionRecommendation (priority based on risk score)
+- [x] Manager accept/reject recommendation via use case + REST endpoints
+- [x] Idempotence: unique index on alert_id (recommendations) + source_alert_id (interventions)
+- [x] KafkaAlertEventListener checks for existing recommendation before processing
+
+#### Ports & Use Cases — DONE
+- [x] RecommendationRepositoryPort (save, findById, findByAlertId, findByTenantIdAndStatus, findPendingExpired)
+- [x] ManageRecommendationUseCase (acceptRecommendation, rejectRecommendation, findPendingByTenant)
+- [x] ManageRecommendationService (creates intervention on accept, publishes events, audit trail)
+
+#### Events — DONE
+- [x] RecommendationCreatedEvent (published on WARNING alert)
+- [x] RecommendationAcceptedEvent (published on accept)
+- [x] RecommendationRejectedEvent (published on reject)
+
+#### REST API — DONE
+- [x] GET /api/v1/recommendations (list pending for tenant)
+- [x] POST /api/v1/recommendations/{id}/accept (creates intervention)
+- [x] POST /api/v1/recommendations/{id}/reject (with mandatory reason)
+- [x] @PreAuthorize: PLATFORM_ADMIN, TENANT_ADMIN, PROPERTY_MANAGER
+
+#### Persistence — DONE
+- [x] JdbcRecommendationRepository (upsert, queries, alert unique index)
+- [x] Flyway V003: intervention_recommendations table with indexes
+- [x] H2 test migration V003
+
+#### Tests — DONE (84 tests total, 0 failures)
+- [x] InterventionRecommendationTest (8 tests: create, accept, reject, expire, SLA breach, validation)
+- [x] SlaPolicyTest (5 tests: deadlines per priority, breach detection)
+- [x] InterventionPriorityPolicyTest (8 tests: severity/score mapping)
+- [x] AlertToInterventionWorkflowTest (5 tests: full E2E critical path, warning+accept path, rejection, idempotence)
+- [x] ConcurrencyTest (1 test: 10 threads racing on same alert, validates deduplication)
+
+#### Audit & Error Handling — DONE
+- [x] AuditLogPort.log(action, tenantId, details) default method for system actions
+- [x] Audit entries: AUTO_INTERVENTION_CREATED, RECOMMENDATION_CREATED, ACCEPTED, REJECTED
+- [x] Clear error messages: "already exists", "already decided", "Recommendation is already ACCEPTED"
+
+#### Documentation — DONE
+- [x] docs/alert-to-intervention-workflow.md (diagram, step-by-step, domain model, idempotence, audit, errors, config)
 
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 
