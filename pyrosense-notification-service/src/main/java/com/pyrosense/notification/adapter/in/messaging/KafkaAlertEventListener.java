@@ -32,32 +32,37 @@ public class KafkaAlertEventListener {
         this.wsBroadcaster = wsBroadcaster;
     }
 
-    @KafkaListener(topics = "${pyrosense.notification.kafka.alerting-topic:alerting-events}",
-            groupId = "${spring.kafka.consumer.group-id:notification-group}")
+    @KafkaListener(
+            topics = "${pyrosense.notification.kafka.alerting-topic:alerting-events}",
+            groupId = "${pyrosense.notification.kafka.consumer-group-id:notification-group}")
     public void onAlertEvent(IntegrationEvent event) {
         broadcastAndProcess(event);
     }
 
-    @KafkaListener(topics = "${pyrosense.notification.kafka.scoring-topic:scoring-events}",
-            groupId = "${spring.kafka.consumer.group-id:notification-group}")
+    @KafkaListener(
+            topics = "${pyrosense.notification.kafka.scoring-topic:scoring-events}",
+            groupId = "${pyrosense.notification.kafka.consumer-group-id:notification-group}")
     public void onScoringEvent(IntegrationEvent event) {
         broadcastAndProcess(event);
     }
 
-    @KafkaListener(topics = "${pyrosense.notification.kafka.maintenance-topic:maintenance-events}",
-            groupId = "${spring.kafka.consumer.group-id:notification-group}")
+    @KafkaListener(
+            topics = "${pyrosense.notification.kafka.maintenance-topic:maintenance-events}",
+            groupId = "${pyrosense.notification.kafka.consumer-group-id:notification-group}")
     public void onMaintenanceEvent(IntegrationEvent event) {
         broadcastAndProcess(event);
     }
 
-    @KafkaListener(topics = "${pyrosense.notification.kafka.reporting-topic:reporting-events}",
-            groupId = "${spring.kafka.consumer.group-id:notification-group}")
+    @KafkaListener(
+            topics = "${pyrosense.notification.kafka.reporting-topic:reporting-events}",
+            groupId = "${pyrosense.notification.kafka.consumer-group-id:notification-group}")
     public void onReportingEvent(IntegrationEvent event) {
         broadcastAndProcess(event);
     }
 
-    @KafkaListener(topics = "${pyrosense.notification.kafka.device-topic:device-events}",
-            groupId = "${spring.kafka.consumer.group-id:notification-group}")
+    @KafkaListener(
+            topics = "${pyrosense.notification.kafka.device-topic:device-events}",
+            groupId = "${pyrosense.notification.kafka.consumer-group-id:notification-group}")
     public void onDeviceEvent(IntegrationEvent event) {
         broadcastAndProcess(event);
     }

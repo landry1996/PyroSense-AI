@@ -55,11 +55,13 @@ management:
 pyrosense:
   notification:
     kafka:
-      alerting-topic: alerting-events
-      scoring-topic: scoring-events
-      maintenance-topic: maintenance-events
-      reporting-topic: reporting-events
-      device-topic: device-events
+      alerting-topic: ${KAFKA_TOPIC_ALERTING:alerting-events}
+      scoring-topic: ${KAFKA_TOPIC_SCORING:scoring-events}
+      maintenance-topic: ${KAFKA_TOPIC_MAINTENANCE:maintenance-events}
+      reporting-topic: ${KAFKA_TOPIC_REPORTING:reporting-events}
+      device-topic: ${KAFKA_TOPIC_DEVICE:device-events}
+      dlq-topic: ${KAFKA_TOPIC_DLQ:notification-dlq}
+      consumer-group-id: ${KAFKA_GROUP_ID:notification-group}
     retry:
       interval-ms: 30000
       max-retries: 3
