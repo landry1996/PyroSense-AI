@@ -766,6 +766,44 @@
 #### Documentation — DONE
 - [x] docs/notification-templates.md (canaux, 9 templates, regles editoriales, privacy, variables, tests, roadmap)
 
+### Phase 15: Systeme d'Audit Transversal (pyrosense-notification-service)
+
+#### Modele enrichi — DONE
+- [x] AuditEntry enrichi (shared-kernel): +actorRole, +correlationId, +metadata (13 champs total)
+- [x] Backward-compatible: ancien constructeur 10 args preserve pour identity-service
+- [x] Nouveau factory: AuditEntry.createFull() avec 11 args (id + timestamp auto-generes)
+
+#### Architecture — DONE
+- [x] AuditLogRepository (port out): findById, findByTenant (pagine), findByTenantAndAction, findByTenantAndResource, countByTenant
+- [x] GetAuditLogQuery (port in): AuditLogFilter (from, to, action, resourceType, page, size), AuditLogPage
+- [x] GetAuditLogService (use case): routage filtre, isolation tenant sur findById
+- [x] JdbcAuditLogRepository (adapter): persistance JDBC, masquage PII (regex: phone, email, password, token)
+- [x] LoggingAuditLogAdapter: persiste via AuditLogRepository en plus du SLF4J
+
+#### Endpoints REST — DONE
+- [x] GET /api/v1/audit-logs (pagine, filtres: from, to, action, resourceType, page, size)
+- [x] GET /api/v1/audit-logs/{id} (detail avec isolation tenant)
+- [x] @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
+
+#### Securite — DONE
+- [x] Acces restreint: PLATFORM_ADMIN et TENANT_ADMIN uniquement
+- [x] Isolation tenant: findById filtre par tenantId (pas de cross-tenant)
+- [x] PII masquee: telephone, email, password, token/secret rediges avant persistance
+- [x] userAgent stocke mais NON expose dans les reponses API
+- [x] Pagination obligatoire: taille max 200, defaut 50
+
+#### Persistence — DONE
+- [x] Flyway V005: table audit_log (13 colonnes + timestamp auto)
+- [x] 5 index: tenant+time, action+time, resource+time, user+time, correlation_id
+- [x] Masquage PII dans JdbcAuditLogRepository (sanitizeForStorage via regex)
+
+#### Tests — DONE (206 tests total, 0 failures)
+- [x] GetAuditLogServiceTest (9 tests: pagination, filtre action, filtre resource, isolation tenant, not found, page cap 200, negative page, total pages)
+- [x] AuditLogSecurityTest (8 tests: annotation classe, roles admin only, mapping, parametres filtre, endpoint getById, pas de secrets, pas de userAgent, pagination response)
+
+#### Documentation — DONE
+- [x] docs/audit.md (architecture, modele, API, securite, PII, pagination, usage)
+
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 
 #### Mois 1-3 — Prototype Labo

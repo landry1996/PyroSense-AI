@@ -62,4 +62,9 @@ public class UseCaseConfig {
             AuditLogPort auditLog) {
         return new ProcessNotificationEventService(sendService, repository, recipientResolver, deduplication, dispatcher, auditLog);
     }
+
+    @Bean
+    public GetAuditLogService getAuditLogService(AuditLogRepository auditLogRepository) {
+        return new GetAuditLogService(auditLogRepository);
+    }
 }
