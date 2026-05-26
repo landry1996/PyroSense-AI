@@ -121,6 +121,7 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
         i.start();
+        i.addDiagnostic(new FieldDiagnostic("obs", "measure", "rec", "elec", now));
 
         i.complete(InterventionResult.REPAIRED);
 
@@ -136,6 +137,7 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
         i.start();
+        i.addDiagnostic(new FieldDiagnostic("obs", null, null, "elec", now));
 
         i.complete(InterventionResult.NO_DEFECT_FOUND);
 
@@ -148,6 +150,7 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
         i.start();
+        i.addDiagnostic(new FieldDiagnostic("obs", "measure", "rec", "elec", now));
         i.complete(InterventionResult.REPAIRED);
 
         RiskImpact impact = new RiskImpact(75, 20, 45);
@@ -171,9 +174,10 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
 
-        i.cancel();
+        i.cancel("Client requested cancellation");
 
         assertThat(i.getStatus()).isEqualTo(InterventionStatus.CANCELLED);
+        assertThat(i.getCancellationReason()).isEqualTo("Client requested cancellation");
     }
 
     @Test
@@ -181,9 +185,10 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
         i.start();
+        i.addDiagnostic(new FieldDiagnostic("obs", "measure", "rec", "elec", now));
         i.complete(InterventionResult.REPAIRED);
 
-        assertThatThrownBy(i::cancel)
+        assertThatThrownBy(() -> i.cancel("should fail"))
                 .isInstanceOf(InvalidStateTransitionException.class);
     }
 
@@ -200,6 +205,7 @@ class InterventionTest {
         Intervention i = createIntervention();
         i.assign(UserId.generate(), now.plus(Duration.ofDays(1)));
         i.start();
+        i.addDiagnostic(new FieldDiagnostic("obs", null, null, "elec", now));
         i.complete(InterventionResult.NEEDS_FOLLOW_UP);
 
         assertThat(i.requiresFollowUp()).isTrue();

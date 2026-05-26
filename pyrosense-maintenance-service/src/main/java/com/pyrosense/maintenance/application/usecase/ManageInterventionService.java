@@ -3,9 +3,8 @@ package com.pyrosense.maintenance.application.usecase;
 import com.pyrosense.maintenance.application.port.in.ManageInterventionUseCase;
 import com.pyrosense.maintenance.application.port.out.InterventionRepositoryPort;
 import com.pyrosense.maintenance.application.port.out.MaintenanceEventPublisherPort;
-import com.pyrosense.maintenance.domain.event.ElectricalDefectConfirmedEvent;
-import com.pyrosense.maintenance.domain.event.FalsePositiveConfirmedEvent;
-import com.pyrosense.maintenance.domain.event.MaintenanceInterventionCompletedEvent;
+import com.pyrosense.maintenance.application.port.out.RiskScoreReevaluationPublisherPort;
+import com.pyrosense.maintenance.domain.event.*;
 import com.pyrosense.maintenance.domain.model.FieldDiagnostic;
 import com.pyrosense.maintenance.domain.model.Intervention;
 import com.pyrosense.maintenance.domain.model.InterventionResult;
@@ -21,32 +20,53 @@ public class ManageInterventionService implements ManageInterventionUseCase {
 
     private final InterventionRepositoryPort repository;
     private final MaintenanceEventPublisherPort eventPublisher;
+    private final RiskScoreReevaluationPublisherPort riskReevaluationPublisher;
 
     public ManageInterventionService(InterventionRepositoryPort repository,
-                                     MaintenanceEventPublisherPort eventPublisher) {
+                                     MaintenanceEventPublisherPort eventPublisher,
+                                     RiskScoreReevaluationPublisherPort riskReevaluationPublisher) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
+        this.riskReevaluationPublisher = riskReevaluationPublisher;
     }
 
     @Override
     public Intervention schedule(UUID interventionId, Instant scheduledAt) {
         Intervention intervention = findOrThrow(interventionId);
         intervention.schedule(scheduledAt);
-        return repository.save(intervention);
+        Intervention saved = repository.save(intervention);
+
+        eventPublisher.publish(new MaintenanceInterventionPlannedEvent(
+                UUID.randomUUID(), ClockProvider.now(),
+                saved.getId(), saved.getTenantId(), scheduledAt));
+
+        return saved;
     }
 
     @Override
     public Intervention assign(UUID interventionId, UserId electricianId, Instant scheduledAt) {
         Intervention intervention = findOrThrow(interventionId);
         intervention.assign(electricianId, scheduledAt);
-        return repository.save(intervention);
+        Intervention saved = repository.save(intervention);
+
+        eventPublisher.publish(new MaintenanceInterventionAssignedEvent(
+                UUID.randomUUID(), ClockProvider.now(),
+                saved.getId(), saved.getTenantId(), electricianId, scheduledAt));
+
+        return saved;
     }
 
     @Override
     public Intervention start(UUID interventionId) {
         Intervention intervention = findOrThrow(interventionId);
         intervention.start();
-        return repository.save(intervention);
+        Intervention saved = repository.save(intervention);
+
+        eventPublisher.publish(new MaintenanceInterventionStartedEvent(
+                UUID.randomUUID(), ClockProvider.now(),
+                saved.getId(), saved.getTenantId(), saved.getDeviceId()));
+
+        return saved;
     }
 
     @Override
@@ -65,6 +85,9 @@ public class ManageInterventionService implements ManageInterventionUseCase {
         publishCompletionEvent(saved);
         publishResultSpecificEvent(saved);
 
+        riskReevaluationPublisher.requestReevaluation(
+                saved.getTenantId(), saved.getDeviceId(), saved.getId());
+
         return saved;
     }
 
@@ -76,10 +99,16 @@ public class ManageInterventionService implements ManageInterventionUseCase {
     }
 
     @Override
-    public Intervention cancel(UUID interventionId) {
+    public Intervention cancel(UUID interventionId, String reason) {
         Intervention intervention = findOrThrow(interventionId);
-        intervention.cancel();
-        return repository.save(intervention);
+        intervention.cancel(reason);
+        Intervention saved = repository.save(intervention);
+
+        eventPublisher.publish(new MaintenanceInterventionCancelledEvent(
+                UUID.randomUUID(), ClockProvider.now(),
+                saved.getId(), saved.getTenantId(), reason));
+
+        return saved;
     }
 
     private Intervention findOrThrow(UUID id) {

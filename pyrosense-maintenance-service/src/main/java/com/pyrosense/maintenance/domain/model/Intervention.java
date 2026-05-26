@@ -9,6 +9,9 @@ import com.pyrosense.shared.id.UserId;
 import com.pyrosense.shared.util.ClockProvider;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -30,6 +33,8 @@ public class Intervention extends AggregateRoot {
     private FieldDiagnostic diagnostic;
     private InterventionResult result;
     private RiskImpact riskImpact;
+    private String cancellationReason;
+    private final List<InterventionComment> comments = new ArrayList<>();
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -87,6 +92,10 @@ public class Intervention extends AggregateRoot {
 
     public void complete(InterventionResult result) {
         Objects.requireNonNull(result, "result must not be null");
+        if (this.diagnostic == null) {
+            throw new InvalidStateTransitionException(
+                    "Intervention", this.status.name(), "Cannot complete without diagnostic");
+        }
         transitionTo(InterventionStatus.COMPLETED);
         this.result = result;
         this.completedAt = ClockProvider.now();
@@ -102,8 +111,19 @@ public class Intervention extends AggregateRoot {
         this.updatedAt = ClockProvider.now();
     }
 
-    public void cancel() {
+    public void cancel(String reason) {
+        Objects.requireNonNull(reason, "Cancellation reason must not be null");
+        if (reason.isBlank()) {
+            throw new IllegalArgumentException("Cancellation reason must not be blank");
+        }
         transitionTo(InterventionStatus.CANCELLED);
+        this.cancellationReason = reason;
+        this.updatedAt = ClockProvider.now();
+    }
+
+    public void addComment(InterventionComment comment) {
+        Objects.requireNonNull(comment);
+        this.comments.add(comment);
         this.updatedAt = ClockProvider.now();
     }
 
@@ -143,6 +163,11 @@ public class Intervention extends AggregateRoot {
     public FieldDiagnostic getDiagnostic() { return diagnostic; }
     public InterventionResult getResult() { return result; }
     public RiskImpact getRiskImpact() { return riskImpact; }
+    public String getCancellationReason() { return cancellationReason; }
+    public List<InterventionComment> getComments() { return Collections.unmodifiableList(comments); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    public void setCancellationReason(String reason) { this.cancellationReason = reason; }
+    public void addExistingComment(InterventionComment comment) { this.comments.add(comment); }
 }

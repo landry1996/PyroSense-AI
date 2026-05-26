@@ -23,5 +23,5 @@ public interface ManageInterventionUseCase {
 
     Intervention recordRiskImpact(UUID interventionId, RiskImpact riskImpact);
 
-    Intervention cancel(UUID interventionId);
+    Intervention cancel(UUID interventionId, String reason);
 }

@@ -2,6 +2,7 @@ package com.pyrosense.maintenance.application.usecase;
 
 import com.pyrosense.maintenance.adapter.out.persistence.InMemoryInterventionRepository;
 import com.pyrosense.maintenance.application.port.out.MaintenanceEventPublisherPort;
+import com.pyrosense.maintenance.application.port.out.RiskScoreReevaluationPublisherPort;
 import com.pyrosense.maintenance.domain.model.*;
 import com.pyrosense.shared.domain.DomainEvent;
 import com.pyrosense.shared.exception.NotFoundException;
@@ -37,7 +38,8 @@ class ManageInterventionServiceTest {
         repository = new InMemoryInterventionRepository();
         publishedEvents = new ArrayList<>();
         MaintenanceEventPublisherPort publisher = publishedEvents::add;
-        service = new ManageInterventionService(repository, publisher);
+        RiskScoreReevaluationPublisherPort riskPublisher = (tenantId, deviceId, interventionId) -> {};
+        service = new ManageInterventionService(repository, publisher, riskPublisher);
     }
 
     @AfterEach
@@ -101,14 +103,17 @@ class ManageInterventionServiceTest {
         Intervention saved = createAndSave();
         service.assign(saved.getId(), UserId.generate(), now.plus(Duration.ofDays(1)));
         service.start(saved.getId());
+        service.addDiagnostic(saved.getId(), new FieldDiagnostic("obs", "measure", "rec", "elec", now));
 
         Intervention result = service.complete(saved.getId(), InterventionResult.REPAIRED);
 
         assertThat(result.getStatus()).isEqualTo(InterventionStatus.COMPLETED);
         assertThat(result.getResult()).isEqualTo(InterventionResult.REPAIRED);
-        assertThat(publishedEvents).hasSize(2);
-        assertThat(publishedEvents.get(0).eventType()).isEqualTo("maintenance.intervention.completed");
-        assertThat(publishedEvents.get(1).eventType()).isEqualTo("maintenance.defect.confirmed");
+        assertThat(publishedEvents).hasSize(4);
+        assertThat(publishedEvents.get(0).eventType()).isEqualTo("maintenance.intervention.assigned");
+        assertThat(publishedEvents.get(1).eventType()).isEqualTo("maintenance.intervention.started");
+        assertThat(publishedEvents.get(2).eventType()).isEqualTo("maintenance.intervention.completed");
+        assertThat(publishedEvents.get(3).eventType()).isEqualTo("maintenance.defect.confirmed");
     }
 
     @Test
@@ -116,11 +121,13 @@ class ManageInterventionServiceTest {
         Intervention saved = createAndSave();
         service.assign(saved.getId(), UserId.generate(), now.plus(Duration.ofDays(1)));
         service.start(saved.getId());
+        service.addDiagnostic(saved.getId(), new FieldDiagnostic("obs", null, null, "elec", now));
 
         service.complete(saved.getId(), InterventionResult.NO_DEFECT_FOUND);
 
-        assertThat(publishedEvents).hasSize(2);
-        assertThat(publishedEvents.get(1).eventType()).isEqualTo("maintenance.false_positive.confirmed");
+        assertThat(publishedEvents).hasSize(4);
+        assertThat(publishedEvents.get(2).eventType()).isEqualTo("maintenance.intervention.completed");
+        assertThat(publishedEvents.get(3).eventType()).isEqualTo("maintenance.false_positive.confirmed");
     }
 
     @Test
@@ -128,6 +135,7 @@ class ManageInterventionServiceTest {
         Intervention saved = createAndSave();
         service.assign(saved.getId(), UserId.generate(), now.plus(Duration.ofDays(1)));
         service.start(saved.getId());
+        service.addDiagnostic(saved.getId(), new FieldDiagnostic("obs", "measure", "rec", "elec", now));
         service.complete(saved.getId(), InterventionResult.REPAIRED);
 
         RiskImpact impact = new RiskImpact(85, 20, 90);
@@ -143,9 +151,10 @@ class ManageInterventionServiceTest {
         Intervention saved = createAndSave();
         service.assign(saved.getId(), UserId.generate(), now.plus(Duration.ofDays(1)));
 
-        Intervention result = service.cancel(saved.getId());
+        Intervention result = service.cancel(saved.getId(), "Client requested");
 
         assertThat(result.getStatus()).isEqualTo(InterventionStatus.CANCELLED);
+        assertThat(result.getCancellationReason()).isEqualTo("Client requested");
     }
 
     @Test

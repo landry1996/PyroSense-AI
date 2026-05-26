@@ -43,7 +43,7 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
         int updated = jdbc.update("""
                 UPDATE interventions SET status = ?, assigned_electrician_id = ?,
                     scheduled_at = ?, started_at = ?, completed_at = ?, result = ?,
-                    diagnostic = ?::jsonb, risk_impact = ?::jsonb, updated_at = ?
+                    diagnostic = ?::jsonb, risk_impact = ?::jsonb, cancellation_reason = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 intervention.getStatus().name(),
@@ -53,6 +53,7 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
                 toTimestamp(intervention.getCompletedAt()),
                 intervention.getResult() != null ? intervention.getResult().name() : null,
                 diagnosticJson, riskImpactJson,
+                intervention.getCancellationReason(),
                 Timestamp.from(intervention.getUpdatedAt()),
                 intervention.getId());
 
@@ -60,8 +61,8 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
             jdbc.update("""
                     INSERT INTO interventions (id, tenant_id, source_alert_id, device_id, type, priority,
                         description, status, assigned_electrician_id, scheduled_at, started_at, completed_at,
-                        result, diagnostic, risk_impact, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)
+                        result, diagnostic, risk_impact, cancellation_reason, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)
                     """,
                     intervention.getId(),
                     intervention.getTenantId().value(),
@@ -77,6 +78,7 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
                     toTimestamp(intervention.getCompletedAt()),
                     intervention.getResult() != null ? intervention.getResult().name() : null,
                     diagnosticJson, riskImpactJson,
+                    intervention.getCancellationReason(),
                     Timestamp.from(intervention.getCreatedAt()),
                     Timestamp.from(intervention.getUpdatedAt()));
         }
@@ -238,7 +240,8 @@ public class JdbcInterventionRepository implements InterventionRepositoryPort {
             }
 
             if (target == InterventionStatus.CANCELLED) {
-                intervention.cancel();
+                String reason = rs.getString("cancellation_reason");
+                intervention.cancel(reason != null ? reason : "No reason recorded");
             }
 
             String diagJson = rs.getString("diagnostic");

@@ -200,27 +200,32 @@
 - [x] application-secret.example.yml with Vault migration path
 - [x] docs/security.md: STRIDE threat model, OWASP ASVS, role/permission matrix, IoT rules, attack protections
 
-### Maintenance Service (FULLY IMPLEMENTED - 49 tests passing)
-- [x] Domain model: Intervention aggregate (state machine), InterventionStatus (6 states), InterventionType, InterventionResult (5 outcomes), InterventionPriority, FieldDiagnostic, RiskImpact
+### Maintenance Service (FULLY IMPLEMENTED - 57 tests passing)
+- [x] Domain model: Intervention aggregate (state machine), InterventionStatus (6 states), InterventionType, InterventionResult (6 outcomes incl. FALSE_POSITIVE), InterventionPriority, FieldDiagnostic, RiskImpact, InterventionComment
 - [x] State machine: CREATED → PLANNED → ASSIGNED → IN_PROGRESS → COMPLETED (+ CANCELLED from any non-terminal)
 - [x] Business rules: CRITICAL/WARNING alerts auto-create interventions, one per alert (unique constraint), severity → type/priority mapping
-- [x] Domain events: MaintenanceInterventionCreatedEvent, MaintenanceInterventionCompletedEvent, ElectricalDefectConfirmedEvent, FalsePositiveConfirmedEvent
-- [x] Ports in: CreateInterventionUseCase, ManageInterventionUseCase (schedule/assign/start/diagnostic/complete/risk-impact/cancel), GetInterventionQuery (statistics)
-- [x] Ports out: InterventionRepositoryPort, MaintenanceEventPublisherPort
-- [x] Use case implementations: CreateInterventionService, ManageInterventionService, GetInterventionService
+- [x] Business rule: diagnostic required before completion (Intervention.complete() throws if diagnostic == null)
+- [x] Business rule: cancellation requires non-blank reason (Intervention.cancel(reason))
+- [x] Domain events (8): MaintenanceInterventionCreatedEvent, PlannedEvent, AssignedEvent, StartedEvent, CompletedEvent, CancelledEvent, ElectricalDefectConfirmedEvent, FalsePositiveConfirmedEvent
+- [x] Ports in: CreateInterventionUseCase, ManageInterventionUseCase (schedule/assign/start/diagnostic/complete/risk-impact/cancel), GetInterventionQuery (statistics), AddInterventionCommentUseCase
+- [x] Ports out: InterventionRepositoryPort, MaintenanceEventPublisherPort, RiskScoreReevaluationPublisherPort, AlertLookupPort, TechnicianLookupPort, AuditLogPort
+- [x] Use case implementations: CreateInterventionService, ManageInterventionService (publishes events on every transition + risk reevaluation on complete), GetInterventionService, AddInterventionCommentService
 - [x] Kafka consumer: alerting-events → auto-creates interventions for CRITICAL/WARNING alerts
-- [x] Kafka producer: maintenance-events (all domain events)
-- [x] REST API: full CRUD + lifecycle operations + statistics + queries by tenant/electrician/device/alert
-- [x] JDBC persistence: JdbcInterventionRepository with JSONB (diagnostic, risk_impact)
-- [x] SecurityConfig: OAuth2 JWT + TenantContext + @PreAuthorize per role
-- [x] GlobalExceptionHandler (RFC 7807 ApiErrorResponse)
+- [x] Kafka producer: maintenance-events (all domain events) + risk-reevaluation-requests (on completion)
+- [x] REST API: POST /from-alert/{alertId}, POST /interventions, lifecycle (schedule/assign/start/diagnostic/complete/risk-impact/cancel), POST /{id}/comments, GET queries (list/by-id/electrician/device/overdue/kanban/statistics)
+- [x] JDBC persistence: JdbcInterventionRepository with JSONB (diagnostic, risk_impact), cancellation_reason
+- [x] SecurityConfig: OAuth2 JWT + TenantContext + @PreAuthorize per role (5 roles, ELECTRICIAN restricted)
+- [x] GlobalExceptionHandler (RFC 7807 ApiErrorResponse + AccessDeniedException → 403)
 - [x] Flyway V001: interventions table with indexes (tenant, status, device, electrician, alert unique)
+- [x] Flyway V002: intervention_comments table + cancellation_reason column
 - [x] Risk impact measurement: riskScoreBefore, riskScoreAfter, avoidedIncidentEstimate, riskReduction()
 - [x] Feedback loop: FalsePositiveConfirmedEvent → signal-analysis threshold adjustment, ElectricalDefectConfirmedEvent → positive reinforcement
+- [x] Stub adapters: StubAlertLookupAdapter, StubTechnicianLookupAdapter, LoggingAuditLogAdapter
 - [x] Unit tests: 15 Intervention, 6 InterventionStatus, 4 RiskImpact, 4 CreateInterventionService, 9 ManageInterventionService
+- [x] Security tests: 8 InterventionSecurityTest (role-based access validation)
 - [x] ArchUnit tests: 10 rules (hexagonal enforcement)
 - [x] Context load test (embedded Kafka)
-- [x] Documentation: docs/maintenance.md
+- [x] Documentation: docs/maintenance-service.md
 
 ### Reporting Service (FULLY IMPLEMENTED - 41 tests passing)
 - [x] Domain model: Report aggregate (state machine PENDING → GENERATING → GENERATED/FAILED), ReportType (6 types), ReportStatus, ReportMetadata, ReportSignature (SHA-256), DownloadToken (SecureRandom 32-byte, 15min TTL)
@@ -526,6 +531,47 @@
 #### Documentation — DONE
 - [x] pyrosense-dashboard/README.md (stack, structure, commandes, architecture, roles, Docker)
 - [x] docs/frontend-dashboard.md (architecture, flux auth, composants, ecrans, pipes, erreurs, WS, responsive, securite, tests)
+
+### Phase 10: Maintenance Service — Conformite Spec (ecarts combles)
+
+#### Domain enrichi — DONE
+- [x] InterventionComment record (id, authorId, content, createdAt)
+- [x] InterventionResult.FALSE_POSITIVE enum value (+ isFalsePositive() updated)
+- [x] Diagnostic required before completion (complete() throws InvalidStateTransitionException if null)
+- [x] Cancellation requires non-blank reason (cancel(String reason))
+
+#### Evenements Kafka (8 total) — DONE
+- [x] MaintenanceInterventionPlannedEvent (new)
+- [x] MaintenanceInterventionAssignedEvent (new)
+- [x] MaintenanceInterventionStartedEvent (new)
+- [x] MaintenanceInterventionCancelledEvent (new)
+- [x] Events publies dans ManageInterventionService (assign/start/complete/cancel)
+
+#### Ports out supplementaires — DONE
+- [x] RiskScoreReevaluationPublisherPort + KafkaRiskReevaluationPublisher (risk-reevaluation-requests topic)
+- [x] AlertLookupPort (with AlertInfo inner record) + StubAlertLookupAdapter
+- [x] TechnicianLookupPort + StubTechnicianLookupAdapter
+- [x] AuditLogPort + LoggingAuditLogAdapter
+
+#### Endpoints REST — DONE
+- [x] POST /api/v1/interventions/from-alert/{alertId} (creation depuis alerte)
+- [x] POST /api/v1/interventions/{id}/comments (ajout commentaire)
+- [x] AddInterventionCommentUseCase + AddInterventionCommentService
+
+#### Persistence — DONE
+- [x] Flyway V002: intervention_comments table + cancellation_reason column
+- [x] H2 test migration V002 equivalent
+- [x] JdbcInterventionRepository: cancellation_reason in UPDATE/INSERT, cancel(reason) in row mapper
+
+#### Tests — DONE (57 tests passing, 0 failures)
+- [x] InterventionSecurityTest (8 tests: role-based access, 401 unauthenticated, 403 forbidden)
+- [x] InterventionTest updated: diagnostic before complete, cancel(reason)
+- [x] ManageInterventionServiceTest updated: 3-arg constructor, event count assertions, cancel(id, reason)
+- [x] InMemoryInterventionRepository: countOverdueByTenantId implemented
+- [x] GlobalExceptionHandler: AccessDeniedException → 403 (prevents catch-all from swallowing it)
+
+#### Documentation — DONE
+- [x] docs/maintenance-service.md (architecture, lifecycle, priorities, results, business rules, REST API, Kafka events, schema, roles, config)
 
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 

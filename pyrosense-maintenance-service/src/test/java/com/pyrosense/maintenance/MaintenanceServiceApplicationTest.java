@@ -7,7 +7,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, topics = {"alerting-events", "maintenance-events"})
+@EmbeddedKafka(partitions = 1, topics = {"alerting-events", "maintenance-events", "risk-reevaluation-requests"})
 class MaintenanceServiceApplicationTest {
 
     @Test

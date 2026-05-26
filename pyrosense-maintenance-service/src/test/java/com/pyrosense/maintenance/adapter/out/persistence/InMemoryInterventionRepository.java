@@ -9,6 +9,7 @@ import com.pyrosense.shared.id.DeviceId;
 import com.pyrosense.shared.id.TenantId;
 import com.pyrosense.shared.id.UserId;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -77,6 +78,16 @@ public class InMemoryInterventionRepository implements InterventionRepositoryPor
         return store.values().stream()
                 .filter(i -> i.getTenantId().equals(tenantId))
                 .filter(i -> i.getResult() == InterventionResult.NO_DEFECT_FOUND)
+                .count();
+    }
+
+    @Override
+    public long countOverdueByTenantId(TenantId tenantId) {
+        Instant now = Instant.now();
+        return store.values().stream()
+                .filter(i -> i.getTenantId().equals(tenantId))
+                .filter(i -> i.getStatus() != InterventionStatus.COMPLETED && i.getStatus() != InterventionStatus.CANCELLED)
+                .filter(i -> i.getScheduledAt() != null && i.getScheduledAt().isBefore(now))
                 .count();
     }
 }

@@ -1,5 +1,6 @@
 package com.pyrosense.maintenance.adapter.in.rest;
 
+import com.pyrosense.maintenance.application.port.in.AddInterventionCommentUseCase;
 import com.pyrosense.maintenance.application.port.in.CreateInterventionUseCase;
 import com.pyrosense.maintenance.application.port.in.CreateInterventionUseCase.CreateInterventionCommand;
 import com.pyrosense.maintenance.application.port.in.GetInterventionQuery;
@@ -31,13 +32,33 @@ public class InterventionController {
     private final CreateInterventionUseCase createUseCase;
     private final ManageInterventionUseCase manageUseCase;
     private final GetInterventionQuery queryUseCase;
+    private final AddInterventionCommentUseCase commentUseCase;
 
     public InterventionController(CreateInterventionUseCase createUseCase,
                                   ManageInterventionUseCase manageUseCase,
-                                  GetInterventionQuery queryUseCase) {
+                                  GetInterventionQuery queryUseCase,
+                                  AddInterventionCommentUseCase commentUseCase) {
         this.createUseCase = createUseCase;
         this.manageUseCase = manageUseCase;
         this.queryUseCase = queryUseCase;
+        this.commentUseCase = commentUseCase;
+    }
+
+    @PostMapping("/from-alert/{alertId}")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
+    public ResponseEntity<InterventionResponse> createFromAlert(@PathVariable String alertId,
+                                                                 @Valid @RequestBody CreateFromAlertRequest request) {
+        TenantId tid = TenantContext.require();
+        var command = new CreateInterventionCommand(
+                tid,
+                AlertId.from(alertId),
+                new DeviceId(UUID.fromString(request.deviceId())),
+                request.severity(),
+                request.alertType(),
+                request.description()
+        );
+        Intervention result = createUseCase.createFromAlert(command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
     @PostMapping
@@ -111,8 +132,18 @@ public class InterventionController {
 
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER')")
-    public ResponseEntity<InterventionResponse> cancel(@PathVariable UUID id) {
-        Intervention result = manageUseCase.cancel(id);
+    public ResponseEntity<InterventionResponse> cancel(@PathVariable UUID id,
+                                                       @Valid @RequestBody CancelRequest request) {
+        Intervention result = manageUseCase.cancel(id, request.reason());
+        return ResponseEntity.ok(toResponse(result));
+    }
+
+    @PostMapping("/{id}/comments")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN')")
+    public ResponseEntity<InterventionResponse> addComment(@PathVariable UUID id,
+                                                            @Valid @RequestBody CommentRequest request) {
+        Intervention result = commentUseCase.addComment(id,
+                new UserId(UUID.fromString(request.authorId())), request.content());
         return ResponseEntity.ok(toResponse(result));
     }
 
@@ -268,6 +299,13 @@ public class InterventionController {
     ) {}
 
     record CompleteRequest(@NotBlank String result) {}
+
+    record CancelRequest(@NotBlank String reason) {}
+
+    record CommentRequest(@NotBlank String authorId, @NotBlank String content) {}
+
+    record CreateFromAlertRequest(@NotBlank String deviceId, @NotBlank String severity,
+                                   String alertType, @NotBlank String description) {}
 
     record RiskImpactRequest(int riskScoreBefore, int riskScoreAfter, Integer avoidedIncidentEstimateDays) {}
 

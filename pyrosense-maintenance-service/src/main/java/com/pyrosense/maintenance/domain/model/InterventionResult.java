@@ -6,10 +6,11 @@ public enum InterventionResult {
     NO_DEFECT_FOUND,
     REPAIRED,
     REPLACED_COMPONENT,
-    NEEDS_FOLLOW_UP;
+    NEEDS_FOLLOW_UP,
+    FALSE_POSITIVE;
 
     public boolean isFalsePositive() {
-        return this == NO_DEFECT_FOUND;
+        return this == NO_DEFECT_FOUND || this == FALSE_POSITIVE;
     }
 
     public boolean isDefectConfirmed() {
