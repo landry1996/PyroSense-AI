@@ -8,6 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -39,13 +41,28 @@ interface TenantSettings {
   thresholds: AlertThresholds;
 }
 
+interface NotificationPreferences {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+  emailForCritical: boolean;
+  emailForWarning: boolean;
+  emailForInfo: boolean;
+  smsForCritical: boolean;
+  smsForWarning: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  digestFrequency: string;
+}
+
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [
     CommonModule, FormsModule,
     MatTabsModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatButtonModule, MatIconModule, MatSliderModule, MatTableModule,
+    MatButtonModule, MatIconModule, MatSliderModule, MatSlideToggleModule,
+    MatSelectModule, MatTableModule,
     MatProgressSpinnerModule, MatSnackBarModule, MatDialogModule,
   ],
   template: `
@@ -103,8 +120,8 @@ interface TenantSettings {
                   </div>
                 </mat-card-content>
                 <mat-card-actions align="end">
-                  <button mat-button (click)="resetThresholds()">Reinitialiser</button>
-                  <button mat-flat-button color="primary" (click)="saveThresholds()" [disabled]="!thresholdsDirty()">
+                  <button mat-button (click)="resetThresholds()" [disabled]="auth.isReadOnly()">Reinitialiser</button>
+                  <button mat-flat-button color="primary" (click)="saveThresholds()" [disabled]="!thresholdsDirty() || auth.isReadOnly()">
                     Sauvegarder
                   </button>
                 </mat-card-actions>
@@ -160,7 +177,7 @@ interface TenantSettings {
                 }
               </mat-card-content>
               <mat-card-actions>
-                <button mat-flat-button color="primary" (click)="showAddContact = true">
+                <button mat-flat-button color="primary" (click)="showAddContact = true" [disabled]="auth.isReadOnly()">
                   <mat-icon>add</mat-icon> Ajouter un contact
                 </button>
               </mat-card-actions>
@@ -204,6 +221,83 @@ interface TenantSettings {
                 </mat-card-actions>
               </mat-card>
             }
+          </div>
+        </mat-tab>
+
+        <!-- Notifications Tab -->
+        <mat-tab label="Notifications">
+          <div class="tab-content">
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>Preferences de notification</mat-card-title>
+                <mat-card-subtitle>Configurez comment et quand vous souhaitez etre notifie</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="notif-section">
+                  <h3>Canaux</h3>
+                  <div class="toggle-row">
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().emailEnabled"
+                      (ngModelChange)="onNotifChange('emailEnabled', $event)">Email</mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().smsEnabled"
+                      (ngModelChange)="onNotifChange('smsEnabled', $event)">SMS</mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().pushEnabled"
+                      (ngModelChange)="onNotifChange('pushEnabled', $event)">Push</mat-slide-toggle>
+                  </div>
+                </div>
+
+                <div class="notif-section">
+                  <h3>Filtres par severite</h3>
+                  <div class="toggle-row">
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().emailForCritical"
+                      (ngModelChange)="onNotifChange('emailForCritical', $event)">Email critique</mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().emailForWarning"
+                      (ngModelChange)="onNotifChange('emailForWarning', $event)">Email warning</mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().emailForInfo"
+                      (ngModelChange)="onNotifChange('emailForInfo', $event)">Email info</mat-slide-toggle>
+                  </div>
+                  <div class="toggle-row">
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().smsForCritical"
+                      (ngModelChange)="onNotifChange('smsForCritical', $event)">SMS critique</mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="notifPrefs().smsForWarning"
+                      (ngModelChange)="onNotifChange('smsForWarning', $event)">SMS warning</mat-slide-toggle>
+                  </div>
+                </div>
+
+                <div class="notif-section">
+                  <h3>Heures calmes</h3>
+                  <div class="quiet-hours">
+                    <mat-form-field appearance="outline">
+                      <mat-label>De</mat-label>
+                      <input matInput type="time" [(ngModel)]="notifPrefs().quietHoursStart"
+                        (ngModelChange)="onNotifChange('quietHoursStart', $event)">
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>A</mat-label>
+                      <input matInput type="time" [(ngModel)]="notifPrefs().quietHoursEnd"
+                        (ngModelChange)="onNotifChange('quietHoursEnd', $event)">
+                    </mat-form-field>
+                  </div>
+                </div>
+
+                <div class="notif-section">
+                  <h3>Resume</h3>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Frequence du digest</mat-label>
+                    <mat-select [(ngModel)]="notifPrefs().digestFrequency"
+                      (ngModelChange)="onNotifChange('digestFrequency', $event)">
+                      <mat-option value="NONE">Desactive</mat-option>
+                      <mat-option value="DAILY">Quotidien</mat-option>
+                      <mat-option value="WEEKLY">Hebdomadaire</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+              </mat-card-content>
+              <mat-card-actions align="end">
+                <button mat-flat-button color="primary" (click)="saveNotifPrefs()" [disabled]="!notifPrefsDirty() || auth.isReadOnly()">
+                  Sauvegarder
+                </button>
+              </mat-card-actions>
+            </mat-card>
           </div>
         </mat-tab>
 
@@ -252,6 +346,10 @@ interface TenantSettings {
     .info-item { display: flex; flex-direction: column; }
     .info-label { font-size: 12px; color: #666; margin-bottom: 4px; }
     .info-value { font-size: 15px; font-weight: 500; }
+    .notif-section { margin-bottom: 24px; }
+    .notif-section h3 { margin-bottom: 12px; color: #333; font-size: 14px; }
+    .toggle-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+    .quiet-hours { display: flex; gap: 16px; }
   `],
 })
 export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
@@ -271,6 +369,15 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   showAddContact = false;
   newContact: EmergencyContact = { name: '', phone: '', email: '', role: 'ELECTRICIAN', priority: 1 };
 
+  notifPrefs = signal<NotificationPreferences>({
+    emailEnabled: true, smsEnabled: false, pushEnabled: true,
+    emailForCritical: true, emailForWarning: true, emailForInfo: false,
+    smsForCritical: true, smsForWarning: false,
+    quietHoursStart: '22:00', quietHoursEnd: '07:00',
+    digestFrequency: 'DAILY',
+  });
+  notifPrefsDirty = signal(false);
+
   contactColumns = ['priority', 'name', 'role', 'phone', 'email', 'actions'];
 
   constructor(
@@ -284,6 +391,7 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   ngOnInit(): void {
     this.loadSettings();
     this.loadContacts();
+    this.loadNotifPrefs();
   }
 
   ngOnDestroy(): void { this.destroy$.next(); this.destroy$.complete(); }
@@ -342,6 +450,25 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
       });
   }
 
+  onNotifChange(field: string, value: any): void {
+    this.notifPrefs.update(p => ({ ...p, [field]: value }));
+    this.notifPrefsDirty.set(true);
+  }
+
+  saveNotifPrefs(): void {
+    const userId = this.auth.getUserId();
+    if (!userId) return;
+    this.http.put(`${this.baseUrl}/notifications/preferences/${userId}`, this.notifPrefs())
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.notifPrefsDirty.set(false);
+          this.snackBar.open('Preferences sauvegardees', 'OK', { duration: 3000 });
+        },
+        error: () => this.snackBar.open('Erreur lors de la sauvegarde', 'OK', { duration: 3000 }),
+      });
+  }
+
   getRoleLabel(role: string): string {
     const labels: Record<string, string> = {
       ELECTRICIAN: 'Electricien', PROPERTY_MANAGER: 'Gestionnaire', FIRE_DEPT: 'Pompiers',
@@ -366,5 +493,13 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
     this.http.get<EmergencyContact[]>(`${this.baseUrl}/tenants/${tenantId}/emergency-contacts`)
       .pipe(takeUntil(this.destroy$))
       .subscribe({ next: (data) => this.contacts.set(data) });
+  }
+
+  private loadNotifPrefs(): void {
+    const userId = this.auth.getUserId();
+    if (!userId) return;
+    this.http.get<NotificationPreferences>(`${this.baseUrl}/notifications/preferences/${userId}`)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (data) => this.notifPrefs.set(data) });
   }
 }

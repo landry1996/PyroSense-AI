@@ -15,7 +15,9 @@ describe('SettingsComponent', () => {
   const mockAuth = {
     currentUser: signal({ id: 'user-1', email: 'test@test.com', fullName: 'Test', roles: ['TENANT_ADMIN'], tenantId: 'tenant-123' }),
     userRoles: signal(['TENANT_ADMIN']),
+    isReadOnly: signal(false),
     hasAnyRole: (...roles: string[]) => true,
+    getUserId: () => 'user-1',
   };
 
   beforeEach(async () => {
@@ -39,30 +41,35 @@ describe('SettingsComponent', () => {
     httpMock.verify();
   });
 
+  function flushInit() {
+    httpMock.expectOne(req => req.url.includes('/settings')).flush({ thresholds: { temperatureMax: 85, thdMax: 40, riskScoreCritical: 70, riskScoreWarning: 50, microArcCountMax: 3 } });
+    httpMock.expectOne(req => req.url.includes('/emergency-contacts')).flush([]);
+    httpMock.expectOne(req => req.url.includes('/notifications/preferences')).flush({
+      emailEnabled: true, smsEnabled: false, pushEnabled: true,
+      emailForCritical: true, emailForWarning: true, emailForInfo: false,
+      smsForCritical: true, smsForWarning: false,
+      quietHoursStart: '22:00', quietHoursEnd: '07:00', digestFrequency: 'DAILY',
+    });
+  }
+
   it('should create', () => {
-    const settingsReq = httpMock.expectOne(req => req.url.includes('/settings'));
-    settingsReq.flush({ thresholds: { temperatureMax: 85, thdMax: 40, riskScoreCritical: 70, riskScoreWarning: 50, microArcCountMax: 3 } });
-    const contactsReq = httpMock.expectOne(req => req.url.includes('/emergency-contacts'));
-    contactsReq.flush([]);
+    flushInit();
     expect(component).toBeTruthy();
   });
 
   it('hasUnsavedChanges should return false initially', () => {
-    httpMock.expectOne(req => req.url.includes('/settings')).flush({ thresholds: {} });
-    httpMock.expectOne(req => req.url.includes('/emergency-contacts')).flush([]);
+    flushInit();
     expect(component.hasUnsavedChanges()).toBeFalse();
   });
 
   it('hasUnsavedChanges should return true after threshold change', () => {
-    httpMock.expectOne(req => req.url.includes('/settings')).flush({ thresholds: { temperatureMax: 85 } });
-    httpMock.expectOne(req => req.url.includes('/emergency-contacts')).flush([]);
+    flushInit();
     component.onThresholdChange('temperatureMax', 90);
     expect(component.hasUnsavedChanges()).toBeTrue();
   });
 
   it('saveThresholds should PUT to API', () => {
-    httpMock.expectOne(req => req.url.includes('/settings')).flush({ thresholds: { temperatureMax: 85 } });
-    httpMock.expectOne(req => req.url.includes('/emergency-contacts')).flush([]);
+    flushInit();
 
     component.onThresholdChange('temperatureMax', 90);
     component.saveThresholds();
@@ -77,6 +84,7 @@ describe('SettingsComponent', () => {
     httpMock.expectOne(req => req.url.includes('/settings')).flush({ thresholds: {} });
     const contactsReq = httpMock.expectOne(req => req.url.includes('/emergency-contacts'));
     contactsReq.flush([{ id: '1', name: 'Jean', phone: '0601', email: 'j@t.co', role: 'ELECTRICIAN', priority: 1 }]);
+    httpMock.expectOne(req => req.url.includes('/notifications/preferences')).flush({});
     expect(component.contacts().length).toBe(1);
   });
 });

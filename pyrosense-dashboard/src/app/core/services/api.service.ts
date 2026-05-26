@@ -236,6 +236,7 @@ export interface BuildingResponse {
   riskScore: number;
   status: string;
   lastAlertAt: string | null;
+  highestAlertSeverity: string | null;
 }
 
 export interface InterventionOverdueResponse {

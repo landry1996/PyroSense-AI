@@ -78,6 +78,11 @@ import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component
                   <span class="status-badge" [class]="'status-' + building.status.toLowerCase()">
                     {{ getStatusLabel(building.status) }}
                   </span>
+                  @if (building.highestAlertSeverity) {
+                    <span class="severity-badge" [class]="'severity-' + building.highestAlertSeverity.toLowerCase()">
+                      {{ getSeverityLabel(building.highestAlertSeverity) }}
+                    </span>
+                  }
                   @if (building.lastAlertAt) {
                     <span class="last-alert">Derniere alerte: {{ building.lastAlertAt | date:'dd/MM/yyyy' }}</span>
                   }
@@ -117,6 +122,10 @@ import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component
     .status-at_risk { background: #fff3e0; color: #e65100; }
     .status-critical { background: #ffcdd2; color: #b71c1c; }
     .last-alert { font-size: 11px; color: #666; }
+    .severity-badge { padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .severity-critical { background: #ffcdd2; color: #b71c1c; }
+    .severity-warning { background: #fff3e0; color: #e65100; }
+    .severity-info { background: #e3f2fd; color: #1565c0; }
     .empty-state { text-align: center; padding: 48px; }
     .empty-state mat-icon { font-size: 48px; width: 48px; height: 48px; color: #bbb; }
     .empty-state p { color: #666; margin-top: 8px; }
@@ -170,5 +179,10 @@ export class BuildingListComponent implements OnInit, OnDestroy {
       OK: 'OK', WATCH: 'Surveillance', AT_RISK: 'A risque', CRITICAL: 'Critique',
     };
     return labels[status] || status;
+  }
+
+  getSeverityLabel(severity: string): string {
+    const labels: Record<string, string> = { CRITICAL: 'Critique', WARNING: 'Warning', INFO: 'Info' };
+    return labels[severity] || severity;
   }
 }

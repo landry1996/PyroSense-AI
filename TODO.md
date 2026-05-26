@@ -401,9 +401,9 @@
 - [ ] Fix MEDIUM: Identity-service Flyway migrations (replace in-memory repos)
 
 ### Phase 5: Advanced Features
-- [ ] ML-based anomaly detection service
+- [ ] ML-based anomaly detection service (NoOp adapter ready for real model)
 - [ ] Federated learning module
-- [ ] WebSocket real-time dashboard
+- [x] WebSocket real-time dashboard (Sprint F: STOMP/SockJS, live toasts, connection indicator)
 - [x] PDF report generation (OpenPDF) — implemented in pyrosense-reporting-service
 - [ ] Mobile push notifications (Firebase)
 - [ ] Keycloak realm export (users, roles, client configuration)
@@ -429,60 +429,43 @@
 - [x] Backend: InterventionController /kanban endpoint
 - [x] Backend: AuditLogController (GET /api/v1/audit-log)
 
-### Phase 7: Dashboard Complet — Ecarts a Combler (docs/dashboard-ux-api-plan.md)
+### Phase 7: Dashboard — Sprints A-F FAIT, Ecarts Residuels
 
-**Plan UX/API detaille**: voir `docs/dashboard-ux-api-plan.md` (12 livrables)
+**Cadrage complet**: voir `docs/dashboard-cadrage-complet.md`
 
-#### Sprint A — Refactoring Architecture + Dashboard Complet (5j)
-- [ ] Restructurer features/ en containers/ + components/ (smart/presentational)
-- [ ] Creer services d'etat signal-based (DashboardState, BuildingState, etc.)
-- [ ] Dashboard: ajouter metrics manquants (buildings count, offline devices, overdue interventions)
-- [ ] Dashboard: graphique evolution risque 30 jours (Chart.js line)
-- [ ] Dashboard: raccourcis rapides (cards cliquables)
-- [ ] Backend: GET /api/v1/devices/statistics?tenantId (compteurs par statut)
-- [ ] Backend: GET /api/v1/risk-scoring/tenant/summary (score moyen + trend)
-- [ ] Backend: GET /api/v1/risk-scoring/tenant/history?days=30 (evolution globale)
-- [ ] Supprimer tous mocks/fallbacks (donnees reelles obligatoires)
+#### Sprints A-E — DONE (commits 76ab52f → b2c7574)
+- [x] Dashboard complet (6 stat cards, risk chart 30j, raccourcis cliquables)
+- [x] Buildings list + detail (API reelle, statut OK/WATCH/AT_RISK/CRITICAL, risque chart, alertes, interventions)
+- [x] Device list + detail (stats, search, filter, telemetry charts, anomalies)
+- [x] Alertes (filtres severite/statut/periode, actions acknowledge/resolve/false-positive/create-intervention)
+- [x] Interventions kanban (5 colonnes, priorite, date prevue, electricien)
+- [x] Reports (generation, download PDF, historique)
+- [x] Notifications (historique, stats, preferences)
+- [x] Settings (seuils, contacts urgence, info tenant)
+- [x] Admin (users, audit log)
+- [x] Backend: GET/PUT /tenants/:id/settings, CRUD /emergency-contacts, GET/PUT /notifications/preferences
+- [x] Backend: Flyway V002 notification_preferences
+- [x] Responsive (BreakpointObserver, media queries)
+- [x] Accessibilite (aria-labels, role, aria-current, focus)
+- [x] Skeleton loaders + empty states
+- [x] Tests unitaires Karma/Jasmine (59 tests)
+- [x] Tests E2E Cypress (6 fichiers)
+- [x] UnsavedChangesGuard sur settings
 
-#### Sprint B — Buildings + Devices Reels (5j)
-- [ ] Building list: remplacer mock par API reelle
-- [ ] Building list: cards avec statut (OK/WATCH/AT_RISK/CRITICAL), recherche, tri
-- [ ] Building detail: onglet Risque (chart historique score)
-- [ ] Building detail: onglet Alertes (filtrees par buildingId)
-- [ ] Building detail: onglet Interventions (filtrees par buildingId)
-- [ ] Device detail: section anomalies recentes (top 10)
-- [ ] Device detail: heartbeat timeline + badge statut
-- [ ] Backend: BuildingController dans device-service (GET /buildings?tenantId, GET /buildings/:id)
-- [ ] Backend: GET /api/v1/risk-scoring/buildings/:id/history?days=30
+#### Sprint F — WebSocket Temps Reel (commit 29e579e)
+- [x] STOMP broker backend (notification-service)
+- [x] WebSocketService Angular (@stomp/stompjs)
+- [x] Live alert toasts (MatSnackBar)
+- [x] Connection indicator (wifi/wifi_off)
+- [x] Dashboard auto-refresh on WebSocket events
 
-#### Sprint C — Alertes + Interventions Enrichis (4j)
-- [ ] Alertes: filtre periode (date range picker Material)
-- [ ] Alertes: bouton "Creer intervention" sur detail (pre-remplit alertId + deviceId)
-- [ ] Interventions kanban: afficher date prevue sur cartes
-- [ ] Interventions: resoudre nom electricien (assigneeName)
-- [ ] Backend: enrichir InterventionResponse (+scheduledDate, +assigneeName)
-- [ ] Backend: GET /api/v1/interventions/overdue
-- [ ] Error interceptor global (401/403/429/500 handling unifie)
-
-#### Sprint D — Reports + Notifications + Settings (5j)
-- [ ] Reports: formulaire generation on-demand (type, periode, batiment) — dialog Material
-- [ ] Reports: indicateur progression generation
-- [ ] Notifications: sous-onglet Preferences (canaux, consentement toggle)
-- [ ] Notifications: masquage RGPD dans historique
-- [ ] Settings: ecran complet (seuils alertes, contacts urgence, info tenant)
-- [ ] Backend: GET/PUT /api/v1/notifications/preferences/:userId
-- [ ] Backend: Flyway V002 notification_preferences table
-- [ ] Backend: GET/PUT /api/v1/tenants/:id/settings (seuils JSON)
-- [ ] Backend: CRUD /api/v1/tenants/:id/emergency-contacts
-
-#### Sprint E — Polish + Tests + Accessibilite (4j)
-- [ ] Responsive: breakpoints mobile/tablet/desktop sur tous ecrans
-- [ ] Accessibilite: aria-labels, focus management, contraste WCAG AA
-- [ ] Skeleton loaders (remplacement spinners)
-- [ ] Empty states contextuels
-- [ ] Tests unitaires Jest (composants + services, objectif 80%)
-- [ ] Tests E2E Cypress (5 golden paths: login→dashboard→building→alert→intervention→report)
-- [ ] unsavedChangesGuard sur formulaires settings/diagnostic
+#### Ecarts Residuels vs Spec Cible (~4h30 effort)
+- [ ] Alertes: filtre par batiment (MatSelect buildingId)
+- [ ] Alertes: action "Assigner" sur detail (POST /alerts/:id/assign)
+- [ ] Building detail: onglet Tableaux electriques (groupement par panelId)
+- [ ] Settings: onglet Preferences notification (reprendre depuis notification-list)
+- [ ] Mode SUPPORT_READONLY (masquer actions, badge lecture seule)
+- [ ] Building list: badge highestAlertSeverity (enrichir BuildingResponse backend)
 
 ### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
 

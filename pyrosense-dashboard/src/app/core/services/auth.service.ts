@@ -16,6 +16,7 @@ export class AuthService {
   readonly currentUser = computed(() => this.profile());
   readonly isAuthenticated = computed(() => this.profile() !== null);
   readonly userRoles = computed(() => this.profile()?.roles ?? []);
+  readonly isReadOnly = computed(() => this.userRoles().includes('SUPPORT_READONLY'));
 
   constructor(private keycloak: KeycloakService) {}
 

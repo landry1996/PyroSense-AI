@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -93,6 +93,45 @@ Chart.register(...registerables);
                 <tr mat-header-row *matHeaderRowDef="deviceColumns"></tr>
                 <tr mat-row *matRowDef="let row; columns: deviceColumns;"></tr>
               </table>
+            </div>
+          </mat-tab>
+
+          <!-- Tableaux electriques Tab -->
+          <mat-tab label="Tableaux ({{ panels().length }})">
+            <div class="tab-content">
+              @if (panels().length === 0) {
+                <p class="empty">Aucun tableau electrique identifie</p>
+              } @else {
+                @for (panel of panels(); track panel.panelId) {
+                  <mat-card class="panel-card">
+                    <mat-card-header>
+                      <mat-icon mat-card-avatar>electrical_services</mat-icon>
+                      <mat-card-title>Tableau {{ panel.panelId | slice:0:8 }}</mat-card-title>
+                      <mat-card-subtitle>{{ panel.devices.length }} capteur(s)</mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <table mat-table [dataSource]="panel.devices" class="full-width-table">
+                        <ng-container matColumnDef="serialNumber">
+                          <th mat-header-cell *matHeaderCellDef>Serial</th>
+                          <td mat-cell *matCellDef="let d">
+                            <a [routerLink]="['/devices', d.id]">{{ d.serialNumber }}</a>
+                          </td>
+                        </ng-container>
+                        <ng-container matColumnDef="status">
+                          <th mat-header-cell *matHeaderCellDef>Statut</th>
+                          <td mat-cell *matCellDef="let d"><app-device-status-badge [status]="d.status" /></td>
+                        </ng-container>
+                        <ng-container matColumnDef="lastSeen">
+                          <th mat-header-cell *matHeaderCellDef>Derniere activite</th>
+                          <td mat-cell *matCellDef="let d">{{ d.lastSeenAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                        </ng-container>
+                        <tr mat-header-row *matHeaderRowDef="panelDeviceColumns"></tr>
+                        <tr mat-row *matRowDef="let row; columns: panelDeviceColumns;"></tr>
+                      </table>
+                    </mat-card-content>
+                  </mat-card>
+                }
+              }
             </div>
           </mat-tab>
 
@@ -225,6 +264,7 @@ Chart.register(...registerables);
     .priority-high { background: #fff3e0; color: #e65100; }
     .priority-medium { background: #fff8e1; color: #f9a825; }
     .priority-low { background: #e8f5e9; color: #2e7d32; }
+    .panel-card { margin-bottom: 16px; }
 
     @media (max-width: 600px) {
       .header-row { flex-direction: column; }
@@ -248,7 +288,19 @@ export class BuildingDetailComponent implements OnInit, OnDestroy {
   alerts = signal<AlertDetailResponse[]>([]);
   interventions = signal<InterventionResponse[]>([]);
 
+  panels = computed(() => {
+    const grouped = new Map<string, DeviceResponse[]>();
+    for (const d of this.devices()) {
+      if (!d.panelId) continue;
+      const list = grouped.get(d.panelId) || [];
+      list.push(d);
+      grouped.set(d.panelId, list);
+    }
+    return Array.from(grouped.entries()).map(([panelId, devices]) => ({ panelId, devices }));
+  });
+
   deviceColumns = ['serialNumber', 'status', 'connectivity', 'lastSeen'];
+  panelDeviceColumns = ['serialNumber', 'status', 'lastSeen'];
   alertColumns = ['severity', 'title', 'status', 'createdAt'];
   interventionColumns = ['type', 'priority', 'status', 'createdAt', 'actions'];
 
@@ -272,13 +324,13 @@ export class BuildingDetailComponent implements OnInit, OnDestroy {
   }
 
   onTabChange(index: number): void {
-    if (index === 1 && this.riskHistory().length === 0) {
+    if (index === 2 && this.riskHistory().length === 0) {
       this.loadRiskHistory();
     }
-    if (index === 2 && this.alerts().length === 0) {
+    if (index === 3 && this.alerts().length === 0) {
       this.loadAlerts();
     }
-    if (index === 3 && this.interventions().length === 0) {
+    if (index === 4 && this.interventions().length === 0) {
       this.loadInterventions();
     }
   }

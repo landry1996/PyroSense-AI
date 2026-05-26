@@ -123,6 +123,11 @@ import { AuthService } from '../../core/services/auth.service';
                       <mat-icon>check</mat-icon> Acquitter
                     </button>
                   }
+                  @if (alert()!.status === 'OPEN' || alert()!.status === 'ACKNOWLEDGED') {
+                    <button mat-stroked-button color="primary" (click)="showAssignForm = true">
+                      <mat-icon>person_add</mat-icon> Assigner
+                    </button>
+                  }
                   @if (alert()!.status !== 'RESOLVED' && alert()!.status !== 'FALSE_POSITIVE') {
                     <button mat-raised-button color="accent" (click)="showResolveForm = true">
                       <mat-icon>done_all</mat-icon> Resoudre
@@ -162,6 +167,20 @@ import { AuthService } from '../../core/services/auth.service';
                       <button mat-raised-button color="warn" (click)="markFalsePositive()"
                               [disabled]="!falsePositiveReason.trim()">Confirmer</button>
                       <button mat-button (click)="showFalsePositiveForm = false">Annuler</button>
+                    </div>
+                  </div>
+                }
+
+                @if (showAssignForm) {
+                  <div class="action-form">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Utilisateur a assigner</mat-label>
+                      <input matInput [(ngModel)]="assignUserId" placeholder="ID ou email de l'utilisateur">
+                    </mat-form-field>
+                    <div class="form-actions">
+                      <button mat-raised-button color="primary" (click)="assign()"
+                              [disabled]="!assignUserId.trim()">Assigner</button>
+                      <button mat-button (click)="showAssignForm = false">Annuler</button>
                     </div>
                   </div>
                 }
@@ -252,8 +271,10 @@ export class AlertDetailComponent implements OnInit {
 
   showResolveForm = false;
   showFalsePositiveForm = false;
+  showAssignForm = false;
   resolutionNote = '';
   falsePositiveReason = '';
+  assignUserId = '';
   newComment = '';
 
   private alertId = '';
@@ -275,6 +296,7 @@ export class AlertDetailComponent implements OnInit {
   }
 
   isTerminal(): boolean {
+    if (this.auth.isReadOnly()) return true;
     const status = this.alert()?.status;
     return status === 'RESOLVED' || status === 'FALSE_POSITIVE';
   }
@@ -286,6 +308,18 @@ export class AlertDetailComponent implements OnInit {
         this.snackBar.open('Alerte acquittee', 'OK', { duration: 3000 });
       },
       error: () => this.snackBar.open('Erreur lors de l\'acquittement', 'OK', { duration: 3000 }),
+    });
+  }
+
+  assign() {
+    this.http.post<AlertDetailResponse>(`/api/v1/alerts/${this.alertId}/assign`, { userId: this.assignUserId }).subscribe({
+      next: (updated) => {
+        this.alert.set(updated);
+        this.showAssignForm = false;
+        this.assignUserId = '';
+        this.snackBar.open('Alerte assignee', 'OK', { duration: 3000 });
+      },
+      error: () => this.snackBar.open('Erreur lors de l\'assignation', 'OK', { duration: 3000 }),
     });
   }
 

@@ -16,6 +16,7 @@ describe('AlertListComponent', () => {
     getAlertStatistics: jasmine.createSpy().and.returnValue(of({
       totalOpen: 5, totalAcknowledged: 2, totalInProgress: 1, totalResolved: 10, criticalOpen: 2, slaBreached: 0,
     })),
+    getBuildings: jasmine.createSpy().and.returnValue(of([])),
   };
 
   beforeEach(async () => {

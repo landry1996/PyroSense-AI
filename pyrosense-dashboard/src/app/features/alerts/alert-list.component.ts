@@ -14,7 +14,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatCardModule } from '@angular/material/card';
 import { Subject, takeUntil } from 'rxjs';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { ApiService, AlertDetailResponse, AlertStatistics } from '../../core/services/api.service';
+import { ApiService, AlertDetailResponse, AlertStatistics, BuildingResponse } from '../../core/services/api.service';
 import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
 import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
@@ -88,6 +88,16 @@ import { EmptyStateComponent } from '../../shared/components/empty-state.compone
             <mat-option value="CRITICAL">Critique</mat-option>
             <mat-option value="WARNING">Warning</mat-option>
             <mat-option value="INFO">Info</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Batiment</mat-label>
+          <mat-select [(value)]="buildingFilter" (selectionChange)="onFilterChange()">
+            <mat-option value="">Tous</mat-option>
+            @for (b of buildings(); track b.id) {
+              <mat-option [value]="b.id">{{ b.name }}</mat-option>
+            }
           </mat-select>
         </mat-form-field>
 
@@ -220,11 +230,13 @@ export class AlertListComponent implements OnInit, OnDestroy {
 
   alerts = signal<AlertDetailResponse[]>([]);
   statistics = signal<AlertStatistics | null>(null);
+  buildings = signal<BuildingResponse[]>([]);
   loading = signal(true);
   totalAlerts = signal(0);
 
   statusFilter = '';
   severityFilter = '';
+  buildingFilter = '';
   fromDate: Date | null = null;
   toDate: Date | null = null;
   pageSize = 50;
@@ -237,6 +249,7 @@ export class AlertListComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.loadStatistics();
     this.loadAlerts();
+    this.loadBuildings();
   }
 
   ngOnDestroy() {
@@ -260,6 +273,7 @@ export class AlertListComponent implements OnInit, OnDestroy {
     let params = new HttpParams().set('page', this.currentPage).set('size', this.pageSize);
     if (this.statusFilter) params = params.set('status', this.statusFilter);
     if (this.severityFilter) params = params.set('severity', this.severityFilter);
+    if (this.buildingFilter) params = params.set('buildingId', this.buildingFilter);
     if (this.fromDate) params = params.set('from', this.fromDate.toISOString());
     if (this.toDate) params = params.set('to', this.toDate.toISOString());
 
@@ -283,6 +297,12 @@ export class AlertListComponent implements OnInit, OnDestroy {
     this.api.getAlertStatistics()
       .pipe(takeUntil(this.destroy$))
       .subscribe({ next: (stats) => this.statistics.set(stats) });
+  }
+
+  private loadBuildings() {
+    this.api.getBuildings()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (data) => this.buildings.set(data) });
   }
 
   getSeverityLabel(severity: string): string {
