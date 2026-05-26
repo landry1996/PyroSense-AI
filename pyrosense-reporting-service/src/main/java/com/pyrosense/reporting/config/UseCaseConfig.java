@@ -13,9 +13,10 @@ public class UseCaseConfig {
     @Bean
     public GenerateReportService generateReportService(ReportRepositoryPort repository,
                                                        ReportRendererPort renderer,
+                                                       PdfRendererPort professionalRenderer,
                                                        ReportDataProviderPort dataProvider,
                                                        ReportEventPublisherPort eventPublisher) {
-        return new GenerateReportService(repository, renderer, dataProvider, eventPublisher);
+        return new GenerateReportService(repository, renderer, professionalRenderer, dataProvider, eventPublisher);
     }
 
     @Bean
