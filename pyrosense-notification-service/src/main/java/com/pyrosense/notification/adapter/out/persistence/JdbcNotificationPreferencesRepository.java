@@ -28,7 +28,7 @@ public class JdbcNotificationPreferencesRepository implements NotificationPrefer
     public Optional<NotificationPreferences> findByUserId(UserId userId) {
         List<NotificationPreferences> results = jdbc.query(
                 "SELECT * FROM notification_preferences WHERE user_id = ?",
-                (rs, rowNum) -> NotificationPreferences.reconstitute(
+                (rs, rowNum) -> NotificationPreferences.reconstituteFull(
                         new UserId(UUID.fromString(rs.getString("user_id"))),
                         new TenantId(UUID.fromString(rs.getString("tenant_id"))),
                         rs.getBoolean("email_enabled"),
@@ -37,6 +37,11 @@ public class JdbcNotificationPreferencesRepository implements NotificationPrefer
                         rs.getBoolean("webhook_enabled"),
                         toLocalTime(rs.getTime("quiet_hours_start")),
                         toLocalTime(rs.getTime("quiet_hours_end")),
+                        rs.getString("language"),
+                        rs.getBoolean("critical_override_enabled"),
+                        rs.getBoolean("phone_verified"),
+                        rs.getBoolean("email_verified"),
+                        rs.getBoolean("push_token_registered"),
                         toInstant(rs.getTimestamp("created_at")),
                         toInstant(rs.getTimestamp("updated_at"))
                 ),
@@ -50,23 +55,31 @@ public class JdbcNotificationPreferencesRepository implements NotificationPrefer
         int updated = jdbc.update("""
             UPDATE notification_preferences
             SET email_enabled = ?, sms_enabled = ?, push_enabled = ?, webhook_enabled = ?,
-                quiet_hours_start = ?, quiet_hours_end = ?, updated_at = NOW()
+                quiet_hours_start = ?, quiet_hours_end = ?, language = ?,
+                critical_override_enabled = ?, phone_verified = ?, email_verified = ?,
+                push_token_registered = ?, updated_at = NOW()
             WHERE user_id = ?
             """,
                 prefs.isEmailEnabled(), prefs.isSmsEnabled(), prefs.isPushEnabled(), prefs.isWebhookEnabled(),
                 toTime(prefs.getQuietHoursStart()), toTime(prefs.getQuietHoursEnd()),
+                prefs.getLanguage(), prefs.isCriticalOverrideEnabled(),
+                prefs.isPhoneVerified(), prefs.isEmailVerified(), prefs.isPushTokenRegistered(),
                 prefs.getUserId().value().toString()
         );
         if (updated == 0) {
             jdbc.update("""
                 INSERT INTO notification_preferences (user_id, tenant_id, email_enabled, sms_enabled,
-                    push_enabled, webhook_enabled, quiet_hours_start, quiet_hours_end, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    push_enabled, webhook_enabled, quiet_hours_start, quiet_hours_end,
+                    language, critical_override_enabled, phone_verified, email_verified,
+                    push_token_registered, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 """,
                     prefs.getUserId().value().toString(),
                     prefs.getTenantId().value().toString(),
                     prefs.isEmailEnabled(), prefs.isSmsEnabled(), prefs.isPushEnabled(), prefs.isWebhookEnabled(),
                     toTime(prefs.getQuietHoursStart()), toTime(prefs.getQuietHoursEnd()),
+                    prefs.getLanguage(), prefs.isCriticalOverrideEnabled(),
+                    prefs.isPhoneVerified(), prefs.isEmailVerified(), prefs.isPushTokenRegistered(),
                     Timestamp.from(prefs.getCreatedAt())
             );
         }

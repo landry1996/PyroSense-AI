@@ -55,7 +55,7 @@ class PreferenceBypassTest {
     @Test
     void shouldBypassPreferencesForCritical() {
         NotificationPreferences prefs = new NotificationPreferences(recipientUserId, tenantId);
-        prefs.update(false, false, false, false, null, null);
+        prefs.updateFull(false, false, false, false, null, null, "fr", true, true, true, true);
         preferencesRepo.save(prefs);
 
         var command = createCommand(AlertSeverity.CRITICAL);

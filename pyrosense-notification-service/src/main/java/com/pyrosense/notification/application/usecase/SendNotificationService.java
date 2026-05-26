@@ -95,20 +95,15 @@ public class SendNotificationService implements SendNotificationUseCase {
     }
 
     private boolean isChannelAllowedByPreferences(Recipient recipient, NotificationChannel channel, AlertSeverity severity) {
-        if (severity == AlertSeverity.CRITICAL) return true;
         if (channel == NotificationChannel.DASHBOARD) return true;
         if (preferencesRepository == null) return true;
 
         Optional<NotificationPreferences> prefs = preferencesRepository.findByUserId(recipient.userId());
-        if (prefs.isEmpty()) return true;
+        if (prefs.isEmpty()) {
+            if (severity == AlertSeverity.CRITICAL) return true;
+            return true;
+        }
 
-        NotificationPreferences p = prefs.get();
-        return switch (channel) {
-            case EMAIL -> p.isEmailEnabled();
-            case SMS -> p.isSmsEnabled();
-            case PUSH -> p.isPushEnabled();
-            case WEBHOOK -> p.isWebhookEnabled();
-            case DASHBOARD -> true;
-        };
+        return prefs.get().isChannelAllowed(channel, severity);
     }
 }

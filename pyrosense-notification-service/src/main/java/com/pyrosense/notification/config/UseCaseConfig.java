@@ -38,8 +38,18 @@ public class UseCaseConfig {
     }
 
     @Bean
-    public ManageNotificationPreferencesService manageNotificationPreferencesService(NotificationPreferencesRepository repository) {
-        return new ManageNotificationPreferencesService(repository);
+    public ManageNotificationPreferencesService manageNotificationPreferencesService(
+            NotificationPreferencesRepository repository,
+            TenantNotificationPolicyRepository policyRepository,
+            AuditLogPort auditLog) {
+        return new ManageNotificationPreferencesService(repository, policyRepository, auditLog);
+    }
+
+    @Bean
+    public ManageTenantNotificationPolicyService manageTenantNotificationPolicyService(
+            TenantNotificationPolicyRepository policyRepository,
+            AuditLogPort auditLog) {
+        return new ManageTenantNotificationPolicyService(policyRepository, auditLog);
     }
 
     @Bean

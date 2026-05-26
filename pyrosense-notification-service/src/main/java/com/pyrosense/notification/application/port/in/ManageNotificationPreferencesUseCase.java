@@ -10,6 +10,23 @@ public interface ManageNotificationPreferencesUseCase {
     NotificationPreferences getPreferences(UserId userId, TenantId tenantId);
     NotificationPreferences updatePreferences(UserId userId, TenantId tenantId, UpdatePreferencesCommand command);
 
-    record UpdatePreferencesCommand(boolean emailEnabled, boolean smsEnabled, boolean pushEnabled,
-                                     boolean webhookEnabled, LocalTime quietHoursStart, LocalTime quietHoursEnd) {}
+    record UpdatePreferencesCommand(
+            boolean emailEnabled,
+            boolean smsEnabled,
+            boolean pushEnabled,
+            boolean webhookEnabled,
+            LocalTime quietHoursStart,
+            LocalTime quietHoursEnd,
+            String language,
+            boolean criticalOverrideEnabled,
+            boolean phoneVerified,
+            boolean emailVerified,
+            boolean pushTokenRegistered
+    ) {
+        public UpdatePreferencesCommand(boolean emailEnabled, boolean smsEnabled, boolean pushEnabled,
+                                         boolean webhookEnabled, LocalTime quietHoursStart, LocalTime quietHoursEnd) {
+            this(emailEnabled, smsEnabled, pushEnabled, webhookEnabled,
+                    quietHoursStart, quietHoursEnd, "fr", true, false, false, false);
+        }
+    }
 }

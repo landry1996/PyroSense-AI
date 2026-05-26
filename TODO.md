@@ -684,6 +684,47 @@
 #### Documentation — DONE
 - [x] docs/pdf-templates.md (architecture, sections, design, legal, retrocompatibilite, tests)
 
+### Phase 14: Preferences de Notification Avancees (pyrosense-notification-service)
+
+#### Modele enrichi — DONE
+- [x] NotificationPreferences: +language, +criticalOverrideEnabled, +phoneVerified, +emailVerified, +pushTokenRegistered
+- [x] isChannelAllowed(channel, severity): logique combinee (pref user + verification technique + quiet hours + critical override)
+- [x] isChannelTechnicallyReachable(channel): SMS→phoneVerified, Push→pushTokenRegistered, Email→emailVerified
+- [x] isInQuietHours(time): gestion plage horaire (same-day + overnight crossing)
+- [x] TenantNotificationPolicy: modele politique par tenant (defaults, criticalOverrideMandatory, requirePhoneVerification, requirePushToken)
+
+#### Regles metier (7 regles) — DONE
+- [x] Regle 1: utilisateur peut desactiver email pour INFO/WARNING
+- [x] Regle 2: criticalOverride force les alertes CRITICAL si role impose (tenant policy mandatory)
+- [x] Regle 3: quiet hours ne s'applique pas aux CRITICAL
+- [x] Regle 4: SMS uniquement si telephone verifie
+- [x] Regle 5: Push uniquement si token enregistre
+- [x] Regle 6: gestionnaire configure les regles par defaut du tenant (TenantNotificationPolicy)
+- [x] Regle 7: preferences auditees (AuditLogPort.log sur chaque modification)
+
+#### Ports & Use Cases — DONE
+- [x] ManageNotificationPreferencesUseCase: UpdatePreferencesCommand enrichi (11 champs)
+- [x] ManageTenantNotificationPolicyUseCase: getPolicy + updatePolicy (UpdatePolicyCommand)
+- [x] ManageNotificationPreferencesService: applique policy du tenant (criticalOverride, phoneVerification, pushToken)
+- [x] ManageTenantNotificationPolicyService: CRUD policy + audit
+
+#### Endpoints REST — DONE
+- [x] GET /api/v1/notification-preferences/me
+- [x] PUT /api/v1/notification-preferences/me (enrichi: language, criticalOverride, phone/email/push verification)
+- [x] GET /api/v1/tenants/{tenantId}/notification-policy (@PreAuthorize PLATFORM_ADMIN, TENANT_ADMIN)
+- [x] PUT /api/v1/tenants/{tenantId}/notification-policy (@PreAuthorize PLATFORM_ADMIN, TENANT_ADMIN)
+
+#### Persistence — DONE
+- [x] Flyway V004: ALTER notification_preferences (+5 colonnes), CREATE tenant_notification_policy
+- [x] JdbcNotificationPreferencesRepository: reconstituteFull, save avec 15 colonnes
+- [x] JdbcTenantNotificationPolicyRepository: findByTenantId, save (upsert)
+
+#### Tests — DONE (189 tests total, 0 failures)
+- [x] NotificationPreferencesRulesTest (15 tests: critical override, quiet hours, phone verification, push token, dashboard always allowed, overnight quiet hours)
+- [x] ManagePreferencesServiceTest (9 tests: normal user, critical override force, SMS blocked unverified, push blocked, quiet hours, audit, language)
+- [x] ManageTenantPolicyServiceTest (6 tests: default policy, manager update, audit, disable critical override, relax verification, existing policy update)
+- [x] PreferenceBypassTest: mis a jour pour new model (verified channels)
+
 ### Phase 13: Templates de Notification (pyrosense-notification-service)
 
 #### Architecture — DONE
