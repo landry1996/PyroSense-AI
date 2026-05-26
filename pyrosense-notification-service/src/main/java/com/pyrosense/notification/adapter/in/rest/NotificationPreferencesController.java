@@ -9,6 +9,8 @@ import com.pyrosense.shared.security.TenantContext;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -16,7 +18,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/notifications/preferences")
+@RequestMapping("/api/v1/notification-preferences")
 public class NotificationPreferencesController {
 
     private final ManageNotificationPreferencesUseCase useCase;
@@ -25,8 +27,32 @@ public class NotificationPreferencesController {
         this.useCase = useCase;
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PreferencesResponse> getMyPreferences(Authentication authentication) {
+        UserId userId = extractUserId(authentication);
+        TenantId tenantId = TenantContext.require();
+        NotificationPreferences prefs = useCase.getPreferences(userId, tenantId);
+        return ResponseEntity.ok(toResponse(prefs));
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PreferencesResponse> updateMyPreferences(
+            Authentication authentication,
+            @Valid @RequestBody UpdatePreferencesRequest request) {
+        UserId userId = extractUserId(authentication);
+        TenantId tenantId = TenantContext.require();
+        NotificationPreferences prefs = useCase.updatePreferences(userId, tenantId,
+                new UpdatePreferencesCommand(
+                        request.emailEnabled(), request.smsEnabled(),
+                        request.pushEnabled(), request.webhookEnabled(),
+                        request.quietHoursStart(), request.quietHoursEnd()));
+        return ResponseEntity.ok(toResponse(prefs));
+    }
+
     @GetMapping("/{userId}")
-    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OCCUPANT')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<PreferencesResponse> getPreferences(@PathVariable String userId) {
         TenantId tenantId = TenantContext.require();
         NotificationPreferences prefs = useCase.getPreferences(
@@ -35,7 +61,7 @@ public class NotificationPreferencesController {
     }
 
     @PutMapping("/{userId}")
-    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'ELECTRICIAN', 'OCCUPANT')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<PreferencesResponse> updatePreferences(
             @PathVariable String userId,
             @Valid @RequestBody UpdatePreferencesRequest request) {
@@ -48,6 +74,14 @@ public class NotificationPreferencesController {
                         request.pushEnabled(), request.webhookEnabled(),
                         request.quietHoursStart(), request.quietHoursEnd()));
         return ResponseEntity.ok(toResponse(prefs));
+    }
+
+    private UserId extractUserId(Authentication authentication) {
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            String sub = jwt.getSubject();
+            return new UserId(UUID.fromString(sub));
+        }
+        throw new IllegalStateException("Cannot extract user ID from authentication");
     }
 
     private PreferencesResponse toResponse(NotificationPreferences p) {

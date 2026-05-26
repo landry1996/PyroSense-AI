@@ -4,10 +4,12 @@ public enum NotificationStatus {
     PENDING,
     SENT,
     FAILED,
-    RETRYING;
+    RETRYING,
+    CANCELLED,
+    SUPPRESSED;
 
     public boolean isTerminal() {
-        return this == SENT || this == FAILED;
+        return this == SENT || this == FAILED || this == CANCELLED || this == SUPPRESSED;
     }
 
     public boolean canRetry() {

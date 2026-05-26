@@ -7,6 +7,9 @@ import com.pyrosense.shared.valueobject.AlertSeverity;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,6 +36,7 @@ public class Notification {
     private final Instant createdAt;
     private Instant sentAt;
     private String failureReason;
+    private final List<NotificationDeliveryAttempt> deliveryAttempts = new ArrayList<>();
 
     public Notification(UUID id, TenantId tenantId, UserId recipientId, NotificationChannel channel,
                         AlertSeverity severity, String subject, String body, String alertFingerprint) {
@@ -53,17 +57,27 @@ public class Notification {
         this.status = NotificationStatus.SENT;
         this.sentAt = ClockProvider.now();
         this.failureReason = null;
+        this.deliveryAttempts.add(NotificationDeliveryAttempt.success(id, channel, retryCount + 1));
     }
 
     public void markFailed(String reason) {
         this.failureReason = reason;
         this.retryCount++;
+        this.deliveryAttempts.add(NotificationDeliveryAttempt.failure(id, channel, retryCount, reason));
         if (retryCount < MAX_RETRIES) {
             this.status = NotificationStatus.RETRYING;
             this.nextRetryAt = ClockProvider.now().plus(BACKOFF_DELAYS[retryCount - 1]);
         } else {
             this.status = NotificationStatus.FAILED;
         }
+    }
+
+    public void markSuppressed() {
+        this.status = NotificationStatus.SUPPRESSED;
+    }
+
+    public void markCancelled() {
+        this.status = NotificationStatus.CANCELLED;
     }
 
     public boolean shouldRetryNow() {
@@ -95,4 +109,5 @@ public class Notification {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getSentAt() { return sentAt; }
     public String getFailureReason() { return failureReason; }
+    public List<NotificationDeliveryAttempt> getDeliveryAttempts() { return Collections.unmodifiableList(deliveryAttempts); }
 }

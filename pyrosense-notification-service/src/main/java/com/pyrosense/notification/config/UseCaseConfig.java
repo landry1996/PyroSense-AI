@@ -1,9 +1,7 @@
 package com.pyrosense.notification.config;
 
 import com.pyrosense.notification.application.port.out.*;
-import com.pyrosense.notification.application.port.out.NotificationPreferencesRepository;
 import com.pyrosense.notification.application.usecase.*;
-import com.pyrosense.notification.application.usecase.ManageNotificationPreferencesService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,8 +20,9 @@ public class UseCaseConfig {
     public SendNotificationService sendNotificationService(NotificationRepositoryPort repository,
                                                             RecipientResolverPort recipientResolver,
                                                             DeduplicationPort deduplication,
-                                                            NotificationDispatcher dispatcher) {
-        return new SendNotificationService(repository, recipientResolver, deduplication, dispatcher);
+                                                            NotificationDispatcher dispatcher,
+                                                            NotificationPreferencesRepository preferencesRepository) {
+        return new SendNotificationService(repository, recipientResolver, deduplication, dispatcher, preferencesRepository);
     }
 
     @Bean
@@ -41,5 +40,16 @@ public class UseCaseConfig {
     @Bean
     public ManageNotificationPreferencesService manageNotificationPreferencesService(NotificationPreferencesRepository repository) {
         return new ManageNotificationPreferencesService(repository);
+    }
+
+    @Bean
+    public ProcessNotificationEventService processNotificationEventService(
+            SendNotificationService sendService,
+            NotificationRepositoryPort repository,
+            RecipientResolverPort recipientResolver,
+            DeduplicationPort deduplication,
+            NotificationDispatcher dispatcher,
+            AuditLogPort auditLog) {
+        return new ProcessNotificationEventService(sendService, repository, recipientResolver, deduplication, dispatcher, auditLog);
     }
 }

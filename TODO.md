@@ -259,31 +259,37 @@
 - [x] Context load test (embedded Kafka)
 - [x] Documentation: docs/reporting-service.md
 
-### Notification Service (FULLY IMPLEMENTED - 48 tests passing)
-- [x] Domain model: Notification aggregate (retry state machine PENDING → SENT / RETRYING → FAILED), NotificationChannel (5: EMAIL, SMS, PUSH, WEBHOOK, DASHBOARD), NotificationStatus, RecipientType (4), DeduplicationKey
+### Notification Service (FULLY IMPLEMENTED - 72 tests passing)
+- [x] Domain model: Notification aggregate (retry state machine PENDING → SENT / RETRYING → FAILED / CANCELLED / SUPPRESSED), NotificationChannel (5: EMAIL, SMS, PUSH, WEBHOOK, DASHBOARD), NotificationStatus (6 states), RecipientType (4), DeduplicationKey, NotificationDeliveryAttempt
 - [x] Channel routing policy: INFO→DASHBOARD, WARNING→EMAIL+DASHBOARD, CRITICAL→SMS+PUSH+EMAIL+DASHBOARD (pure domain logic)
 - [x] Recipient model: consent flags (consentEmail, consentSms, consentPush), canReceive(channel) checks consent before dispatch
 - [x] Templates per severity with variable substitution ({alertType}, {deviceId}, {occurredAt})
-- [x] Anti-spam / deduplication: alertFingerprint (alertId:deviceId:severity) + recipientId + channel, 30-minute window
+- [x] TemplateRendererPort + DefaultTemplateRenderer adapter (9 template keys, French content)
+- [x] Anti-spam / deduplication: alertFingerprint (alertId:deviceId:severity) + recipientId + channel, configurable window
+- [x] Redis deduplication: RedisDeduplicationAdapter (@Primary, key prefix notif:dedup:, TTL-based window)
+- [x] InMemory deduplication: fallback for tests (@Profile("test"))
 - [x] Retry with exponential backoff: 30s → 2min → 10min (max 3 retries), then FAILED
-- [x] Domain events consumed: alerting.alert.created (from alerting-events topic)
-- [x] Ports in: SendNotificationUseCase (dispatchForAlert), GetNotificationQuery, RetryNotificationUseCase
-- [x] Ports out: EmailProviderPort, SmsProviderPort, PushProviderPort, WebhookProviderPort, RecipientResolverPort, DeduplicationPort, NotificationRepositoryPort
-- [x] Use case implementations: SendNotificationService (routing + consent + dedup + dispatch), NotificationDispatcher, GetNotificationService, RetryNotificationService
-- [x] Kafka consumer: KafkaAlertEventListener (alerting-events topic, filters alerting.alert.created)
-- [x] REST API: GET /notifications?tenantId&status, GET /{id}, GET /recipient/{recipientId}, GET /statistics
+- [x] Preference enforcement: respect user preferences (email/sms/push disabled) except for CRITICAL severity
+- [x] Domain events consumed (8 types): alerting.alert.created, alerting.alert.escalated, scoring.critical.risk.detected, maintenance.intervention.created, maintenance.intervention.assigned, maintenance.intervention.completed, reporting.report.generated, device.offline.detected
+- [x] Ports in: SendNotificationUseCase, ProcessNotificationEventUseCase (8 methods), GetNotificationQuery, RetryNotificationUseCase, ManageNotificationPreferencesUseCase
+- [x] Ports out: EmailProviderPort, SmsProviderPort, PushProviderPort, WebhookProviderPort, RecipientResolverPort, DeduplicationPort, NotificationRepositoryPort, NotificationPreferencesRepository, TemplateRendererPort, AuditLogPort
+- [x] Use case implementations: SendNotificationService (routing + consent + prefs + dedup + dispatch), ProcessNotificationEventService (8 event handlers), NotificationDispatcher, GetNotificationService, RetryNotificationService, ManageNotificationPreferencesService
+- [x] Kafka consumer: KafkaAlertEventListener (5 topics: alerting, scoring, maintenance, reporting, device)
+- [x] REST API: GET /notifications, GET /{id}, POST /{id}/retry, GET /notification-preferences/me, PUT /notification-preferences/me, GET /notifications/statistics
 - [x] Simulated adapters: LoggingEmailProvider, LoggingSmsProvider, LoggingPushProvider, LoggingWebhookProvider (masked PII in logs)
 - [x] StubRecipientResolver (MVP, deterministic recipients per tenant)
-- [x] InMemoryDeduplicationAdapter (ConcurrentHashMap, 30-min window)
-- [x] JDBC persistence: JdbcNotificationRepository with state replay from DB
+- [x] AuditLogPort + LoggingAuditLogAdapter (structured audit logging)
+- [x] JDBC persistence: JdbcNotificationRepository, JdbcNotificationPreferencesRepository
 - [x] SecurityConfig: OAuth2 JWT + TenantContext
 - [x] RetryScheduler: @Scheduled with configurable interval (default 30s)
 - [x] RGPD compliance: no PII in persistence/logs, maskedPhone (***1234), maskedEmail (j***e@domain.com), consent enforcement
 - [x] Flyway V001: notifications table with partial index on RETRYING status
-- [x] Unit tests: 8 NotificationTest, 6 ChannelRoutingPolicyTest, 7 RecipientTest, 6 NotificationTemplateTest, 7 SendNotificationServiceTest, 3 RetryNotificationServiceTest
+- [x] Flyway V002: notification_preferences table
+- [x] Flyway V003: notification_delivery_attempts table
+- [x] Unit tests: 8 NotificationTest, 5 NotificationDeliveryAttemptTest, 6 ChannelRoutingPolicyTest, 7 RecipientTest, 6 NotificationTemplateTest, 7 SendNotificationServiceTest, 3 RetryNotificationServiceTest, 9 ProcessNotificationEventServiceTest, 6 DeduplicationAntiSpamTest, 4 PreferenceBypassTest
 - [x] ArchUnit tests: 10 rules (hexagonal enforcement)
-- [x] Context load test (embedded Kafka)
-- [x] Documentation: docs/notification.md
+- [x] Context load test (embedded Kafka, 5 topics)
+- [x] Documentation: docs/notification-service.md, docs/notification-rules.md
 
 ### IoT Simulator (tools/pyrosense-iot-simulator - 38 tests passing)
 - [x] Standalone Maven module (not part of platform build)

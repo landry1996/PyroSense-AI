@@ -7,7 +7,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, topics = {"alerting-events"})
+@EmbeddedKafka(partitions = 1, topics = {"alerting-events", "scoring-events", "maintenance-events", "reporting-events", "device-events"})
 class NotificationServiceApplicationTest {
 
     @Test

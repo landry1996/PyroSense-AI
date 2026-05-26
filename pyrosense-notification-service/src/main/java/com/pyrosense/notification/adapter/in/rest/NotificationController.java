@@ -1,6 +1,7 @@
 package com.pyrosense.notification.adapter.in.rest;
 
 import com.pyrosense.notification.application.port.in.GetNotificationQuery;
+import com.pyrosense.notification.application.port.in.RetryNotificationUseCase;
 import com.pyrosense.notification.domain.model.Notification;
 import com.pyrosense.notification.domain.model.NotificationStatus;
 import com.pyrosense.shared.id.TenantId;
@@ -19,9 +20,12 @@ import java.util.UUID;
 public class NotificationController {
 
     private final GetNotificationQuery queryUseCase;
+    private final RetryNotificationUseCase retryUseCase;
 
-    public NotificationController(GetNotificationQuery queryUseCase) {
+    public NotificationController(GetNotificationQuery queryUseCase,
+                                  RetryNotificationUseCase retryUseCase) {
         this.queryUseCase = queryUseCase;
+        this.retryUseCase = retryUseCase;
     }
 
     @GetMapping("/{id}")
@@ -83,6 +87,20 @@ public class NotificationController {
         long pending = queryUseCase.countByTenantAndStatus(tid, NotificationStatus.PENDING);
         long retrying = queryUseCase.countByTenantAndStatus(tid, NotificationStatus.RETRYING);
         return ResponseEntity.ok(new StatisticsResponse(sent, failed, pending, retrying));
+    }
+
+    @PostMapping("/{id}/retry")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'TENANT_ADMIN')")
+    public ResponseEntity<NotificationResponse> retry(@PathVariable UUID id) {
+        return queryUseCase.findById(id)
+                .filter(n -> n.getStatus().canRetry())
+                .map(n -> {
+                    retryUseCase.retryPendingNotifications();
+                    return queryUseCase.findById(id).orElse(n);
+                })
+                .map(this::toResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     private NotificationResponse toResponse(Notification n) {

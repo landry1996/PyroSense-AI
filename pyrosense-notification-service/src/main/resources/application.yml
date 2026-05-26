@@ -56,5 +56,12 @@ pyrosense:
   notification:
     kafka:
       alerting-topic: alerting-events
+      scoring-topic: scoring-events
+      maintenance-topic: maintenance-events
+      reporting-topic: reporting-events
+      device-topic: device-events
     retry:
       interval-ms: 30000
+      max-retries: 3
+    deduplication:
+      window-minutes: 30

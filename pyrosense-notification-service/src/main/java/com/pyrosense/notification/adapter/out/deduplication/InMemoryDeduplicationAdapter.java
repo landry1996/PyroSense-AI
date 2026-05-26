@@ -2,6 +2,7 @@ package com.pyrosense.notification.adapter.out.deduplication;
 
 import com.pyrosense.notification.application.port.out.DeduplicationPort;
 import com.pyrosense.notification.domain.model.DeduplicationKey;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Profile("test")
 public class InMemoryDeduplicationAdapter implements DeduplicationPort {
 
     private static final Duration DEDUP_WINDOW = Duration.ofMinutes(30);
