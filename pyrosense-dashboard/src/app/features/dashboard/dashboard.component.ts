@@ -7,6 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component';
 import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
 import { DashboardStateService } from './dashboard-state.service';
+import { WebSocketService } from '../../core/services/websocket.service';
+import { Subject, takeUntil } from 'rxjs';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -178,12 +180,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('riskChart') chartRef!: ElementRef<HTMLCanvasElement>;
   private chart: Chart | null = null;
   private refreshInterval: any;
+  private destroy$ = new Subject<void>();
 
-  constructor(public state: DashboardStateService) {}
+  constructor(public state: DashboardStateService, private ws: WebSocketService) {}
 
   ngOnInit(): void {
     this.state.load();
     this.refreshInterval = setInterval(() => this.state.load(), 60000);
+
+    this.ws.onDashboard()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.state.load());
+
+    this.ws.onAlerts()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.state.load());
   }
 
   ngAfterViewInit(): void {
@@ -191,6 +202,8 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     if (this.refreshInterval) clearInterval(this.refreshInterval);
     this.chart?.destroy();
   }

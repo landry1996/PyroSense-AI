@@ -2,6 +2,7 @@ package com.pyrosense.notification.adapter.in.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pyrosense.notification.adapter.in.websocket.WebSocketEventBroadcaster;
 import com.pyrosense.notification.application.port.in.SendNotificationUseCase;
 import com.pyrosense.notification.application.port.in.SendNotificationUseCase.DispatchAlertNotificationCommand;
 import com.pyrosense.shared.event.IntegrationEvent;
@@ -21,15 +22,20 @@ public class KafkaAlertEventListener {
 
     private final SendNotificationUseCase sendUseCase;
     private final ObjectMapper objectMapper;
+    private final WebSocketEventBroadcaster wsBroadcaster;
 
-    public KafkaAlertEventListener(SendNotificationUseCase sendUseCase, ObjectMapper objectMapper) {
+    public KafkaAlertEventListener(SendNotificationUseCase sendUseCase, ObjectMapper objectMapper,
+                                   WebSocketEventBroadcaster wsBroadcaster) {
         this.sendUseCase = sendUseCase;
         this.objectMapper = objectMapper;
+        this.wsBroadcaster = wsBroadcaster;
     }
 
     @KafkaListener(topics = "${pyrosense.notification.kafka.alerting-topic:alerting-events}",
             groupId = "${spring.kafka.consumer.group-id:notification-group}")
     public void onAlertEvent(IntegrationEvent event) {
+        wsBroadcaster.broadcastFromKafkaEvent(event.eventType(), extractTenantId(event), event.payload());
+
         if (!"alerting.alert.created".equals(event.eventType())) {
             return;
         }
@@ -56,6 +62,15 @@ public class KafkaAlertEventListener {
             log.debug("Processed alert event: alertId={} severity={}", alertId, severity);
         } catch (Exception e) {
             log.error("Failed to process alert event: {}", e.getMessage(), e);
+        }
+    }
+
+    private String extractTenantId(IntegrationEvent event) {
+        try {
+            JsonNode node = objectMapper.readTree(event.payload());
+            return extractField(node, "tenantId");
+        } catch (Exception e) {
+            return "unknown";
         }
     }
 

@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardStateService, DashboardSummary } from './dashboard-state.service';
+import { WebSocketService } from '../../core/services/websocket.service';
 import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
+import { EMPTY } from 'rxjs';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
@@ -32,11 +34,22 @@ describe('DashboardComponent', () => {
     load: jasmine.createSpy('load'),
   };
 
+  const mockWs = {
+    connected: signal(false),
+    reconnecting: signal(false),
+    connect: jasmine.createSpy('connect'),
+    disconnect: jasmine.createSpy('disconnect'),
+    onAlerts: () => EMPTY,
+    onDashboard: () => EMPTY,
+    onTelemetry: () => EMPTY,
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DashboardComponent, NoopAnimationsModule],
       providers: [
         { provide: DashboardStateService, useValue: mockState },
+        { provide: WebSocketService, useValue: mockWs },
         provideRouter([]),
       ],
     }).compileComponents();

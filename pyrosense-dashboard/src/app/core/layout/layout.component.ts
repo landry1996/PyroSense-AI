@@ -7,9 +7,13 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { WebSocketService, WsEvent } from '../services/websocket.service';
+import { LiveAlertToastComponent, LiveAlertData } from '../../shared/components/live-alert-toast.component';
 
 @Component({
   selector: 'app-layout',
@@ -23,6 +27,8 @@ import { AuthService } from '../services/auth.service';
     MatIconModule,
     MatButtonModule,
     MatBadgeModule,
+    MatSnackBarModule,
+    MatTooltipModule,
   ],
   template: `
     <mat-sidenav-container class="layout-container">
@@ -91,7 +97,12 @@ import { AuthService } from '../services/auth.service';
             </button>
           }
           <span class="spacer"></span>
-          <button mat-icon-button [matBadge]="'3'" matBadgeColor="warn" matBadgeSize="small"
+          <span class="connection-indicator" [class.connected]="ws.connected()" [class.reconnecting]="ws.reconnecting()"
+                [matTooltip]="ws.connected() ? 'Temps reel actif' : ws.reconnecting() ? 'Reconnexion...' : 'Deconnecte'">
+            <mat-icon>{{ ws.connected() ? 'wifi' : 'wifi_off' }}</mat-icon>
+          </span>
+          <button mat-icon-button [matBadge]="liveAlertCount()" [matBadgeHidden]="liveAlertCount() === 0"
+                  matBadgeColor="warn" matBadgeSize="small"
                   aria-label="Notifications non lues">
             <mat-icon>notifications</mat-icon>
           </button>
@@ -157,6 +168,14 @@ import { AuthService } from '../services/auth.service';
     @media (max-width: 960px) {
       .sidenav { width: 220px; }
     }
+    .connection-indicator {
+      display: flex; align-items: center; margin-right: 8px;
+      opacity: 0.7; font-size: 20px;
+    }
+    .connection-indicator mat-icon { font-size: 20px; width: 20px; height: 20px; }
+    .connection-indicator.connected { color: #4caf50; opacity: 1; }
+    .connection-indicator.reconnecting { color: #ff9800; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
     @media (max-width: 600px) {
       .main-content { padding: 12px; }
       .sidenav { width: 200px; }
@@ -166,19 +185,52 @@ import { AuthService } from '../services/auth.service';
 export class LayoutComponent implements OnInit, OnDestroy {
   @ViewChild('sidenav') sidenav!: MatSidenav;
   isMobile = signal(false);
+  liveAlertCount = signal(0);
   private destroy$ = new Subject<void>();
 
-  constructor(public auth: AuthService, private breakpointObserver: BreakpointObserver) {}
+  constructor(
+    public auth: AuthService,
+    public ws: WebSocketService,
+    private breakpointObserver: BreakpointObserver,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit(): void {
     this.breakpointObserver.observe('(max-width: 960px)')
       .pipe(takeUntil(this.destroy$))
       .subscribe(result => this.isMobile.set(result.matches));
+
+    this.ws.connect();
+    this.ws.onAlerts()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => this.handleLiveAlert(event));
   }
 
-  ngOnDestroy(): void { this.destroy$.next(); this.destroy$.complete(); }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.ws.disconnect();
+  }
 
   closeMobileSidenav(): void {
     if (this.isMobile()) this.sidenav.close();
+  }
+
+  private handleLiveAlert(event: WsEvent): void {
+    this.liveAlertCount.update(c => c + 1);
+    const data = event.data;
+    const toastData: LiveAlertData = {
+      alertId: data.alertId || '',
+      severity: data.severity || 'INFO',
+      title: data.title || 'Nouvelle alerte',
+      type: data.type || event.eventType,
+    };
+    this.snackBar.openFromComponent(LiveAlertToastComponent, {
+      data: toastData,
+      duration: toastData.severity === 'CRITICAL' ? 10000 : 5000,
+      horizontalPosition: 'end',
+      verticalPosition: 'top',
+      panelClass: ['live-alert-snackbar'],
+    });
   }
 }
