@@ -1,0 +1,284 @@
+{
+  "id": "pyrosense",
+  "realm": "pyrosense",
+  "displayName": "PyroSense AI Platform",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "failureFactor": 5,
+  "passwordPolicy": "length(8) and notUsername",
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "defaultSignatureAlgorithm": "RS256",
+  "roles": {
+    "realm": [
+      {
+        "name": "PLATFORM_ADMIN",
+        "description": "Full platform administrator with unrestricted access across all tenants",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "TENANT_ADMIN",
+        "description": "Tenant-level administrator managing users, buildings, and configurations within a tenant",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "PROPERTY_MANAGER",
+        "description": "Manages buildings, floors, and zones within assigned properties",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "ELECTRICIAN",
+        "description": "Installs, maintains, and troubleshoots electrical sensing devices on-site",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "DEVICE_MANAGER",
+        "description": "Manages device lifecycle including provisioning, firmware updates, and decommissioning",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "OPERATOR",
+        "description": "Monitors real-time dashboards, acknowledges alerts, and escalates incidents",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "OCCUPANT",
+        "description": "Building occupant with read-only access to safety status of their zone",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "SUPPORT_READONLY",
+        "description": "Read-only support access for troubleshooting and customer assistance",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "pyrosense-frontend",
+      "name": "PyroSense Dashboard Frontend",
+      "description": "Angular SPA frontend application using PKCE authorization code flow",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "http://localhost:4200",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "permissions",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "permissions",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "permissions",
+            "jsonType.label": "JSON",
+            "multivalued": "true"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "pyrosense-backend",
+      "name": "PyroSense Backend Services",
+      "description": "Confidential client for inter-service communication and service account operations",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "protocol": "openid-connect",
+      "secret": "${KEYCLOAK_BACKEND_CLIENT_SECRET:-changeme}",
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@pyrosense.io",
+      "email": "admin@pyrosense.io",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "attributes": {
+        "tenant_id": ["pilot-tenant-001"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "changeme",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "PLATFORM_ADMIN"
+      ]
+    },
+    {
+      "username": "manager@pyrosense.io",
+      "email": "manager@pyrosense.io",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Tenant",
+      "lastName": "Manager",
+      "attributes": {
+        "tenant_id": ["pilot-tenant-001"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "changeme",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "TENANT_ADMIN",
+        "PROPERTY_MANAGER"
+      ]
+    },
+    {
+      "username": "electricien@pyrosense.io",
+      "email": "electricien@pyrosense.io",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Jean",
+      "lastName": "Electricien",
+      "attributes": {
+        "tenant_id": ["pilot-tenant-001"]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "changeme",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "ELECTRICIAN"
+      ]
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {},
+  "smtpServer": {},
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true
+}

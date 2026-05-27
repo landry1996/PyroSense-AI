@@ -28,7 +28,7 @@ public class DeviceController {
     private final RegisterDeviceUseCase registerDevice;
     private final ProvisionDeviceUseCase provisionDevice;
     private final ActivateDeviceUseCase activateDevice;
-    private final RevokeDeviceUseCase revokeDevice;
+    private final RevokeDeviceCredentialUseCase revokeDevice;
     private final GetDeviceQuery getDevice;
     private final RecordHeartbeatUseCase recordHeartbeat;
     private final GetDeviceStatisticsQuery getDeviceStatistics;
@@ -36,7 +36,7 @@ public class DeviceController {
     public DeviceController(RegisterDeviceUseCase registerDevice,
                             ProvisionDeviceUseCase provisionDevice,
                             ActivateDeviceUseCase activateDevice,
-                            RevokeDeviceUseCase revokeDevice,
+                            RevokeDeviceCredentialUseCase revokeDevice,
                             GetDeviceQuery getDevice,
                             RecordHeartbeatUseCase recordHeartbeat,
                             GetDeviceStatisticsQuery getDeviceStatistics) {
@@ -94,17 +94,13 @@ public class DeviceController {
     }
 
     @PostMapping("/{deviceId}/revoke")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE_MANAGER')")
-    @Operation(summary = "Revoke a device")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEVICE_MANAGER', 'PLATFORM_ADMIN')")
+    @Operation(summary = "Revoke a device and all its credentials")
     public ResponseEntity<Void> revoke(
             @PathVariable UUID deviceId,
             @Valid @RequestBody RevokeDeviceRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        var command = new RevokeDeviceUseCase.RevokeDeviceCommand(
-                DeviceId.from(deviceId.toString()),
-                request.reason()
-        );
-        revokeDevice.execute(command, extractActor(jwt));
+        revokeDevice.execute(DeviceId.from(deviceId.toString()), request.reason(), extractActor(jwt));
         return ResponseEntity.ok().build();
     }
 

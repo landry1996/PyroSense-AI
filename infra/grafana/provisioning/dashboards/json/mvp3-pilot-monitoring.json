@@ -1,0 +1,143 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "MVP3 - Pilot Monitoring",
+  "uid": "mvp3-pilot-monitoring",
+  "tags": ["mvp3", "pilot"],
+  "panels": [
+    {
+      "title": "Pilot Active Devices",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_pilot_active_devices",
+          "legendFormat": "Active"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 5 },
+              { "color": "green", "value": 8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Pilot Data Quality Average",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_pilot_data_quality_average",
+          "legendFormat": "Avg Quality"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 60 },
+              { "color": "green", "value": 80 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Pilot Incidents Total",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_pilot_incidents_total",
+          "legendFormat": "Incidents"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Real Device Throughput",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_real_device_telemetry_received_total[5m])",
+          "legendFormat": "msg/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "title": "Pilot Device Telemetry Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_real_device_telemetry_received_total[5m])",
+          "legendFormat": "Telemetry/s"
+        }
+      ]
+    },
+    {
+      "title": "Pilot Signal & Data Quality Trends",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_signal_quality_score",
+          "legendFormat": "Signal Quality"
+        },
+        {
+          "expr": "pyrosense_mvp3_pilot_data_quality_average",
+          "legendFormat": "Data Quality Avg"
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 100 } }
+    },
+    {
+      "title": "Rejection & Security Events",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_signature_invalid_total[5m])",
+          "legendFormat": "Signature Invalid/s"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_replay_detected_total[5m])",
+          "legendFormat": "Replay Detected/s"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_low_signal_quality_total[5m])",
+          "legendFormat": "Low Signal/s"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_clock_drift_total[5m])",
+          "legendFormat": "Clock Drift/s"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 37,
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m"
+}

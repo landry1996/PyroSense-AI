@@ -142,7 +142,7 @@ services:
     container_name: pyrosense-keycloak
     networks:
       - pyrosense-net
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/pyrosense_identity
@@ -153,6 +153,8 @@ services:
       KC_HEALTH_ENABLED: "true"
     ports:
       - "8180:8080"
+    volumes:
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:
       postgres:
         condition: service_healthy

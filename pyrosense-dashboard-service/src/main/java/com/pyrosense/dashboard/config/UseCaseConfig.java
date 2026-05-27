@@ -2,6 +2,8 @@ package com.pyrosense.dashboard.config;
 
 import com.pyrosense.dashboard.application.port.out.DashboardCachePort;
 import com.pyrosense.dashboard.application.port.out.DashboardReadModelPort;
+import com.pyrosense.dashboard.application.port.out.DeviceTechnicalReadModelPort;
+import com.pyrosense.dashboard.application.port.out.PilotRepositoryPort;
 import com.pyrosense.dashboard.application.usecase.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -43,5 +45,17 @@ public class UseCaseConfig {
     public GetDeviceHealthService getDeviceHealthService(
             DashboardReadModelPort readModel, DashboardCachePort cache, DashboardProperties props) {
         return new GetDeviceHealthService(readModel, cache, props.deviceHealthTtl());
+    }
+
+    @Bean
+    public ManagePilotService managePilotService(PilotRepositoryPort pilotRepository) {
+        return new ManagePilotService(pilotRepository);
+    }
+
+    @Bean
+    public GetDeviceTechnicalService getDeviceTechnicalService(
+            DeviceTechnicalReadModelPort deviceTechnicalReadModel,
+            PilotRepositoryPort pilotRepository) {
+        return new GetDeviceTechnicalService(deviceTechnicalReadModel, pilotRepository);
     }
 }

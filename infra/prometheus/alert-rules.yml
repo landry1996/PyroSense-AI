@@ -201,3 +201,95 @@ groups:
         annotations:
           summary: "Suspicious cross-tenant access detected"
           description: "Multiple cross-tenant access attempts detected across MVP 2 services."
+
+  - name: pyrosense-mvp3
+    rules:
+      - alert: Mvp3SignatureInvalidSpike
+        expr: rate(pyrosense_mvp3_signature_invalid_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High rate of invalid device signatures"
+          description: "{{ $value | humanize }}/s invalid HMAC signatures detected — possible device compromise or key mismatch."
+
+      - alert: Mvp3ReplayAttackDetected
+        expr: increase(pyrosense_mvp3_replay_detected_total[5m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Replay attacks detected on real devices"
+          description: "{{ $value }} replay attempts blocked in last 5 minutes."
+
+      - alert: Mvp3DeviceOfflineLong
+        expr: pyrosense_mvp3_device_offline_duration_seconds > 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Device offline for over 1 hour"
+          description: "A real device has been offline for {{ $value | humanizeDuration }}."
+
+      - alert: Mvp3LowSignalQualityHigh
+        expr: rate(pyrosense_mvp3_low_signal_quality_total[10m]) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent low signal quality events"
+          description: "{{ $value | humanize }}/s low signal quality events — check device placement or interference."
+
+      - alert: Mvp3ClockDriftFrequent
+        expr: rate(pyrosense_mvp3_clock_drift_total[10m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent clock drift events on real devices"
+          description: "{{ $value | humanize }}/s clock drift events — NTP sync may be failing."
+
+      - alert: Mvp3NoRealDeviceData
+        expr: rate(pyrosense_mvp3_real_device_telemetry_received_total[10m]) == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No telemetry from real devices for 15 minutes"
+          description: "No real device (MVP3) telemetry received — check MQTT broker and device connectivity."
+
+      - alert: Mvp3ValidationLatencyHigh
+        expr: histogram_quantile(0.95, rate(pyrosense_mvp3_validation_duration_seconds_bucket[5m])) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High validation pipeline latency"
+          description: "P95 validation duration is {{ $value }}s — investigate signature verification or replay check bottleneck."
+
+      - alert: Mvp3DataQualityLow
+        expr: pyrosense_mvp3_data_quality_score < 60
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low data quality score"
+          description: "Data quality score is {{ $value }} — below acceptable threshold (60)."
+
+      - alert: Mvp3PilotDevicesInactive
+        expr: pyrosense_mvp3_pilot_active_devices < 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too few active devices in pilot"
+          description: "Only {{ $value }} devices active in pilot program — expected minimum is 5."
+
+      - alert: Mvp3FirmwareVersionDrift
+        expr: pyrosense_mvp3_firmware_version_count > 3
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many firmware versions in fleet"
+          description: "{{ $value }} distinct firmware versions detected — schedule firmware update campaign."

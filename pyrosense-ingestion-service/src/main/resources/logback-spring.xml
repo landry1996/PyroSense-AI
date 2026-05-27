@@ -37,7 +37,16 @@
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <mdc/>
+                    <mdc>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                        <includeMdcKeyName>correlationId</includeMdcKeyName>
+                        <includeMdcKeyName>tenantId</includeMdcKeyName>
+                        <includeMdcKeyName>deviceId</includeMdcKeyName>
+                        <includeMdcKeyName>firmwareVersion</includeMdcKeyName>
+                        <includeMdcKeyName>schemaVersion</includeMdcKeyName>
+                        <includeMdcKeyName>rejectionReason</includeMdcKeyName>
+                    </mdc>
                     <stackTrace>
                         <fieldName>stackTrace</fieldName>
                     </stackTrace>

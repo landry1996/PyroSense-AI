@@ -1,0 +1,32 @@
+idf_component_register(
+    SRCS
+        "app_main.cpp"
+        "config/device_config.cpp"
+        "config/state_machine.cpp"
+        "sensors/sensor_registry.cpp"
+        "sensors/mock_sensor_provider.cpp"
+        "signal_processing/feature_extractor.cpp"
+        "signal_processing/rms_calculator.cpp"
+        "signal_processing/signal_quality.cpp"
+        "telemetry/payload_builder.cpp"
+        "telemetry/heartbeat_builder.cpp"
+        "connectivity/mqtt_client.cpp"
+        "connectivity/wifi_manager.cpp"
+        "security/hmac_signer.cpp"
+        "security/nonce_generator.cpp"
+        "storage/offline_queue.cpp"
+        "diagnostics/self_test.cpp"
+        "diagnostics/logger.cpp"
+        "utils/time_utils.cpp"
+        "utils/uuid_utils.cpp"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        nvs_flash
+        esp_wifi
+        mqtt
+        esp_timer
+        spiffs
+        mbedtls
+        json
+)

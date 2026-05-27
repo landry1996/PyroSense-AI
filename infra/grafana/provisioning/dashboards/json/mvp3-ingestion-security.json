@@ -1,0 +1,166 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "MVP3 - Ingestion Security",
+  "uid": "mvp3-ingestion-security",
+  "tags": ["mvp3", "security", "ingestion"],
+  "panels": [
+    {
+      "title": "Signature Invalid Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_signature_invalid_total[1m])",
+          "legendFormat": "Invalid Signatures/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Replay Attacks Detected",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_replay_detected_total[5m])",
+          "legendFormat": "Replay Attempts (5m)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Security Events Summary",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_signature_invalid_total[1h])",
+          "legendFormat": "Invalid Signatures (1h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Replay Attempts (1h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_replay_detected_total[1h])",
+          "legendFormat": "Replays (1h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 3 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Clock Drift Events (1h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_clock_drift_total[1h])",
+          "legendFormat": "Clock Drift (1h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 10 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Validation Pipeline P95 Latency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(pyrosense_mvp3_validation_duration_seconds_bucket[5m]))",
+          "legendFormat": "P95 Validation"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(pyrosense_mvp3_validation_duration_seconds_bucket[5m]))",
+          "legendFormat": "P99 Validation"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "title": "Rejection Rate by Type",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_signature_invalid_total[5m])",
+          "legendFormat": "Signature Invalid"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_replay_detected_total[5m])",
+          "legendFormat": "Replay Detected"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_low_signal_quality_total[5m])",
+          "legendFormat": "Low Signal"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_clock_drift_total[5m])",
+          "legendFormat": "Clock Drift"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 37,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s"
+}

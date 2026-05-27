@@ -2,8 +2,10 @@
 
 **Predictive Electrical Fire Prevention System** - A microservices platform that uses IoT sensors, statistical analysis, and AI to detect early signs of electrical faults before they cause fires.
 
-> **Status:** MVP / Pedagogical project — No real hardware sensors. Uses simulated data.
-> Not certified for production electrical monitoring (IEC 61439, NF C 15-100).
+> **Status:** MVP 3 complete — Pilot-ready (pending hardware 24h validation).
+> Firmware prototype (ESP32-S3), secured IoT pipeline (HMAC + anti-replay), 900+ tests.
+> **NOT CERTIFIED** for production electrical monitoring (IEC 61439, NF C 15-100).
+> Any real installation requires a **qualified electrician (B2V minimum)**.
 
 ## Architecture
 
@@ -233,6 +235,108 @@ Alternativement, en developpement local avec le profil `test`, les endpoints peu
 | [Observabilite](docs/mvp2-observability.md) | Metriques, tracing, alertes Prometheus |
 | [Production Readiness](docs/production-readiness-mvp2.md) | Checklist avant pilote reel |
 
+## MVP 3 — IoT Real Device Pilot (10 Capteurs)
+
+> **AVERTISSEMENT** : Le MVP 3 prepare un **pilote terrain controle** avec capteurs reels.
+> Ce n'est PAS un produit certifie. Toute installation physique sur tableau electrique
+> doit etre realisee **exclusivement par un electricien qualifie habilite B2V minimum**.
+> PyroSense ne remplace pas un systeme de securite incendie certifie.
+
+### Demarrage rapide MVP 3
+
+```bash
+# 1. Lancer l'infrastructure + services backend
+docker compose --profile full up -d
+
+# 2. Lancer le broker MQTT (Mosquitto, port 1884)
+# Deja inclus dans docker-compose.yml
+
+# 3. Lancer le simulateur (simule capteurs reels via MQTT v1)
+cd tools/pyrosense-iot-simulator
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# 4. Ou lancer un firmware mock (host build, sans ESP32 physique)
+cd firmware/pyrosense-device/test
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+ctest --output-on-failure
+```
+
+### Enregistrer un device (provisioning)
+
+```bash
+# 1. Creer un claim token (necessite JWT admin)
+curl -X POST http://localhost:8080/api/v1/devices/{deviceId}/claim-token \
+  -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json"
+# Reponse: { "claimToken": "abc123..." } (affiche UNE SEULE fois)
+
+# 2. Provisionner le device (appele par le firmware, pas de JWT requis)
+curl -X POST http://localhost:8080/api/v1/devices/provision \
+  -H "Content-Type: application/json" \
+  -d '{
+    "claimToken": "abc123...",
+    "serialNumber": "PYRO-S3-001",
+    "model": "PyroSense-S3",
+    "firmwareVersion": "0.3.1"
+  }'
+# Reponse: credentials MQTT (affichees UNE SEULE fois, stockage hash uniquement)
+
+# 3. Le device peut maintenant publier sur MQTT:
+# Topic: pyrosense/v1/{tenantId}/{deviceId}/telemetry
+```
+
+### Verifier la telemetrie
+
+```bash
+# Verifier les metriques d'ingestion
+curl http://localhost:8083/actuator/prometheus | grep pyrosense_mvp3
+
+# Metriques cles:
+# pyrosense_mvp3_real_device_telemetry_received_total  — messages recus
+# pyrosense_mvp3_signature_invalid_total               — signatures invalides
+# pyrosense_mvp3_replay_detected_total                 — tentatives replay
+# pyrosense_mvp3_signal_quality_score                  — qualite signal (0-100)
+
+# Qualite des donnees par device
+curl http://localhost:8080/api/v1/devices/quality/devices/{deviceId} \
+  -H "Authorization: Bearer $JWT"
+
+# Dashboard technique device
+curl http://localhost:8080/api/v1/devices/{deviceId}/technical/health \
+  -H "Authorization: Bearer $JWT"
+```
+
+### Limites de securite MVP 3
+
+| Protection | Mecanisme | Limite |
+|-----------|-----------|--------|
+| Authentification device | HMAC-SHA256 par message | Comparaison constant-time |
+| Anti-replay | Nonce + messageId + sequence | 3 couches independantes, Redis 24h TTL |
+| Rate limiting | Per-device sliding window | 120 msg / 60s (configurable) |
+| Payload | Taille max + schema validation | 8 KB, schema v1.0 whitelist |
+| Timestamp | Tolerance + drain mode | ±300s normal, 72h en drain |
+| Credentials | Hash SHA-256, rotation, revocation | Jamais re-affichees apres creation |
+| Provisioning | Claim token single-use, rate limit IP | 10 echecs / IP / 15 min |
+
+**Ce qui n'est PAS encore en place :**
+
+- mTLS X.509 (planifie Phase 4, necessite ATECC608B + EMQX)
+- MQTT ACL par device (necessite broker EMQX)
+- OTA firmware securise (necessite partitions A/B validees)
+- Certification IEC 61439 / NF C 15-100 (processus long, post-pilote)
+
+### Monitoring pilote
+
+| URL | Description |
+|-----|-------------|
+| Grafana — Fleet Health | http://localhost:3000/d/mvp3-fleet-health | Sante flotte devices |
+| Grafana — Pilot | http://localhost:3000/d/mvp3-pilot | Suivi programme pilote |
+| Grafana — Security | http://localhost:3000/d/mvp3-security | Signatures, replay, rejets |
+| Grafana — Data Quality | http://localhost:3000/d/mvp3-quality | Qualite donnees, drift |
+| Prometheus Alerts | http://localhost:9090/alerts | 10 regles MVP3 actives |
+
 ## Remote Debugging (Docker)
 
 All services expose JDWP debug ports (via `docker-compose.override.yml`):
@@ -285,11 +389,26 @@ All services expose JDWP debug ports (via `docker-compose.override.yml`):
 | [Observability MVP 2](docs/mvp2-observability.md) | Business metrics, Prometheus alerts, tracing |
 | [Production Readiness MVP 2](docs/production-readiness-mvp2.md) | Pre-pilot checklist, risks, limitations |
 
-### MVP 3 & Pilot
+### MVP 3 — IoT Real Device & Pilot
 
 | Document | Description |
 |----------|-------------|
-| [MVP 3 Transition](docs/mvp3-transition.md) | Full transition plan: what's ready, what's missing, protocols, feedback loop, roadmap |
+| [MVP 3 Overview](docs/mvp3-overview.md) | Objectives, scope, prerequisites, architecture, safety warnings |
+| [Edge-Cloud Architecture](docs/edge-cloud-architecture.md) | Sequences, responsibilities, offline 72h, compression, versioning |
+| [Hardware Prototype](docs/hardware-prototype-strategy.md) | Options A/B/C comparison, BOM, progressive approach |
+| [Firmware Architecture](docs/firmware-architecture.md) | ESP32-S3, ESP-IDF 5.x, 8 modules, state machine, tests |
+| [MQTT Protocol v1](docs/mqtt-protocol-v1.md) | 6 topics, 7 payloads, HMAC, anti-replay, validation pipeline |
+| [Device Provisioning](docs/device-provisioning.md) | Claim token, credential rotation, revocation, rate limiting |
+| [Real Device Ingestion](docs/real-device-ingestion.md) | V1 topics, validation pipeline, rejection handling, quality |
+| [Data Quality](docs/data-quality.md) | Scoring algorithm, 9 criteria, grades A-F, business rules |
+| [Field Data Collection](docs/field-data-collection.md) | Dataset pipeline, pseudonymization, labels, RGPD |
+| [Lab Test Protocol](docs/lab-test-protocol.md) | 14 scenarios, acceptance criteria, defect report templates |
+| [Field Pilot 10 Devices](docs/field-pilot-10-devices.md) | Full pilot plan, 25 sections, KPIs, procedures, risks |
+| [IoT Security](docs/iot-security.md) | STRIDE model, 13 controls, mTLS migration, pre-pilot checklist |
+| [Observability MVP 3](docs/mvp3-observability.md) | 14 metrics, 10 alerts, tracing, 4 Grafana dashboards |
+| [CI/CD MVP 3](docs/ci-cd-mvp3.md) | 7-job pipeline, versioning, firmware checklist, deploy-pilot |
+| [Production Readiness](docs/mvp3-production-readiness-checklist.md) | 88-item checklist, GO/NO-GO criteria, residual risks |
+| [MVP 3 Transition](docs/mvp3-transition.md) | Full transition plan: what's ready, what's missing, roadmap |
 | [Pilot Transition Plan](docs/pilot-transition-plan.md) | Hardware, certification, cloud, 12-month roadmap |
 | [Audit MVP 2](docs/audit-mvp2.md) | Security audit findings, corrections applied, verification results |
 
@@ -310,7 +429,9 @@ All services expose JDWP debug ports (via `docker-compose.override.yml`):
 
 ## Limitations
 
-- **No real hardware:** All sensor data is simulated via the IoT simulator
-- **No electrical certification:** Not certified IEC 61439 or NF C 15-100
-- **No production ML:** Currently uses statistical methods (Welford's algorithm); ML integration is planned
-- **MVP scope:** Single-region, no HA, no disaster recovery yet
+- **No electrical certification:** Not certified IEC 61439 or NF C 15-100 — prototype only
+- **No production ML:** Currently uses statistical methods (Welford's algorithm); ML planned post-pilot (3+ months real data required)
+- **No mTLS:** Device auth uses HMAC-SHA256; mTLS with secure element planned for MVP 4
+- **No OTA firmware:** Updates require physical USB access during pilot
+- **MVP scope:** Single-region, no HA, no disaster recovery — acceptable for 10-device pilot
+- **Firmware not hardware-validated:** Host tests pass (43 tests); hardware 24h stability test pending

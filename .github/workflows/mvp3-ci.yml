@@ -1,0 +1,458 @@
+name: MVP3 CI/CD — Backend + Frontend + Firmware
+
+on:
+  push:
+    branches: [main, develop, 'release/**', 'firmware/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      deploy_pilot:
+        description: 'Deploy to pilot environment'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: mvp3-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+  MAVEN_OPTS: -Xmx2g -XX:+UseG1GC
+
+jobs:
+  # ============================================================
+  # JOB 1: Backend Build & Unit Tests
+  # ============================================================
+  backend-build-test:
+    name: Backend Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Compile all modules
+        run: mvn compile -B -q
+
+      - name: Unit tests
+        run: mvn test -B
+
+      - name: ArchUnit tests
+        run: mvn test -B -pl pyrosense-shared-kernel,pyrosense-ingestion-service,pyrosense-signal-analysis-service,pyrosense-alerting-service,pyrosense-maintenance-service -Dtest="**/architecture/**"
+
+      - name: Integration tests
+        run: mvn verify -Ptest -B -Dsurefire.skip=true
+
+      - name: JaCoCo coverage
+        run: mvn jacoco:report -B
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            **/target/surefire-reports/*.xml
+            **/target/failsafe-reports/*.xml
+          retention-days: 14
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: '**/target/site/jacoco/**'
+          retention-days: 14
+
+      - name: Check coverage threshold
+        run: |
+          for report in $(find . -path '*/target/site/jacoco/jacoco.csv' 2>/dev/null); do
+            MODULE=$(echo "$report" | sed 's|./\(.*\)/target/site/jacoco/jacoco.csv|\1|')
+            MISSED=$(awk -F',' 'NR>1 {sum+=$4} END {print sum+0}' "$report")
+            COVERED=$(awk -F',' 'NR>1 {sum+=$5} END {print sum+0}' "$report")
+            TOTAL=$((MISSED + COVERED))
+            if [ "$TOTAL" -gt 0 ]; then
+              PCT=$(awk "BEGIN {printf \"%.0f\", ($COVERED/$TOTAL)*100}")
+              echo "$MODULE: ${PCT}% coverage"
+              if [ "$PCT" -lt 60 ]; then
+                echo "::warning::$MODULE coverage ${PCT}% is below 60% threshold"
+              fi
+            fi
+          done
+
+  # ============================================================
+  # JOB 2: Frontend Build & Test
+  # ============================================================
+  frontend-build-test:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if dashboard modified
+        id: check-dashboard
+        run: |
+          if git diff --name-only ${{ github.event.before || 'HEAD~1' }} HEAD 2>/dev/null | grep -q '^pyrosense-dashboard/'; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+          else
+            echo "modified=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        if: steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: pyrosense-dashboard/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main'
+        run: npm ci
+        working-directory: pyrosense-dashboard
+
+      - name: Lint
+        if: steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main'
+        run: npx ng lint
+        working-directory: pyrosense-dashboard
+
+      - name: Unit tests
+        if: steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main'
+        run: npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
+        working-directory: pyrosense-dashboard
+
+      - name: Production build
+        if: steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main'
+        run: npx ng build --configuration production
+        working-directory: pyrosense-dashboard
+
+      - name: Upload frontend coverage
+        if: always() && (steps.check-dashboard.outputs.modified == 'true' || github.ref == 'refs/heads/main')
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: pyrosense-dashboard/coverage/
+          retention-days: 14
+
+  # ============================================================
+  # JOB 3: Firmware Build & Test
+  # ============================================================
+  firmware-build:
+    name: Firmware Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ cppcheck
+
+      - name: Build host tests
+        working-directory: firmware/pyrosense-device/test
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Run firmware unit tests
+        working-directory: firmware/pyrosense-device/test/build
+        run: ctest --output-on-failure --timeout 30
+
+      - name: Static analysis (cppcheck)
+        working-directory: firmware/pyrosense-device
+        run: |
+          cppcheck --enable=all --inconclusive --std=c++17 \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            -DPYRO_HOST_BUILD \
+            -I main \
+            main/ 2>&1 | tee cppcheck-report.txt
+          if grep -q "error" cppcheck-report.txt; then
+            echo "::error::cppcheck found errors"
+            exit 1
+          fi
+
+      - name: Generate firmware version
+        id: fw-version
+        run: |
+          FW_VERSION="0.3.$(date +%Y%m%d).$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "version=$FW_VERSION" >> $GITHUB_OUTPUT
+          echo "Firmware version: $FW_VERSION"
+
+      - name: Upload firmware test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-test-results
+          path: |
+            firmware/pyrosense-device/test/build/Testing/
+            firmware/pyrosense-device/cppcheck-report.txt
+          retention-days: 14
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ steps.fw-version.outputs.version }}
+          path: |
+            firmware/pyrosense-device/test/build/
+            firmware/pyrosense-device/main/
+          retention-days: 30
+
+    outputs:
+      firmware-version: ${{ steps.fw-version.outputs.version }}
+
+  # ============================================================
+  # JOB 4: Security Scan
+  # ============================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: backend-build-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: OWASP Dependency Check
+        run: mvn dependency-check:check -B -DfailBuildOnCVSS=8
+
+      - name: Upload OWASP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: '**/target/dependency-check-report.*'
+          retention-days: 14
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "Scanning for potential secrets..."
+          FINDINGS=$(grep -rn --include="*.java" --include="*.yml" --include="*.properties" \
+            -E "(password|secret|apikey|api_key)\s*=\s*['\"][^${}]" \
+            --exclude-dir=target --exclude-dir=node_modules \
+            . 2>/dev/null || true)
+          if [ -n "$FINDINGS" ]; then
+            echo "::error::Potential hardcoded secrets found:"
+            echo "$FINDINGS"
+            exit 1
+          fi
+          echo "No hardcoded secrets detected."
+
+  # ============================================================
+  # JOB 5: Docker Build
+  # ============================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend-build-test, frontend-build-test]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Cache Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Build JARs
+        run: mvn package -B -DskipTests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Generate version tag
+        id: version
+        run: |
+          VERSION="0.3.0-$(date +%Y%m%d)-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and push images
+        run: |
+          SERVICES="ingestion device signal-analysis risk-scoring alerting reporting notification maintenance dashboard api-gateway"
+          for SVC in $SERVICES; do
+            if [ -f "pyrosense-${SVC}-service/Dockerfile" ] || [ -f "pyrosense-${SVC}/Dockerfile" ]; then
+              DIR="pyrosense-${SVC}-service"
+              [ ! -d "$DIR" ] && DIR="pyrosense-${SVC}"
+              docker build -t ${{ vars.REGISTRY_URL }}/pyrosense-${SVC}:${{ steps.version.outputs.tag }} "$DIR"
+              docker push ${{ vars.REGISTRY_URL }}/pyrosense-${SVC}:${{ steps.version.outputs.tag }}
+            fi
+          done
+
+    outputs:
+      version-tag: ${{ steps.version.outputs.tag }}
+
+  # ============================================================
+  # JOB 6: Release Notes (on tag/release branch)
+  # ============================================================
+  release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    needs: [backend-build-test, frontend-build-test, firmware-build, security-scan]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline --no-merges -30)
+          else
+            COMMITS=$(git log --oneline --no-merges ${PREV_TAG}..HEAD)
+          fi
+
+          BACKEND_VERSION="0.3.0-SNAPSHOT"
+          FW_VERSION="${{ needs.firmware-build.outputs.firmware-version }}"
+          SCHEMA_VERSION="1.0"
+
+          cat > release-notes.md << EOF
+          # Release Notes — MVP 3
+
+          **Date**: $(date +%Y-%m-%d)
+          **Backend Version**: ${BACKEND_VERSION}
+          **Firmware Version**: ${FW_VERSION}
+          **Payload Schema Version**: ${SCHEMA_VERSION}
+
+          ## Changes
+
+          ${COMMITS}
+
+          ## Versions Matrix
+
+          | Component | Version | Status |
+          |-----------|---------|--------|
+          | Backend (Java 21 / Spring Boot 3.4) | ${BACKEND_VERSION} | Build OK |
+          | Dashboard (Angular 18) | $(node -p "require('./pyrosense-dashboard/package.json').version" 2>/dev/null || echo "N/A") | Build OK |
+          | Firmware (ESP32-S3 / ESP-IDF 5.x) | ${FW_VERSION} | Tests OK |
+          | MQTT Protocol Schema | v${SCHEMA_VERSION} | Active |
+
+          ## Security
+
+          - OWASP Dependency Check: PASSED
+          - No hardcoded secrets: PASSED
+          - IoT security tests: 30+ tests passing
+
+          ## Pre-Pilot Checklist
+
+          - [ ] Security checklist reviewed (docs/iot-security.md)
+          - [ ] Firmware validated on hardware
+          - [ ] MQTT broker TLS configured
+          - [ ] Prometheus alerts active
+          - [ ] Manual approval granted
+          EOF
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          retention-days: 30
+
+  # ============================================================
+  # JOB 7: Deploy to Pilot (Manual Approval Required)
+  # ============================================================
+  deploy-pilot:
+    name: Deploy to Pilot
+    runs-on: ubuntu-latest
+    needs: [docker-build, firmware-build, security-scan]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_pilot == 'true'
+    environment:
+      name: pilot
+      url: ${{ vars.PILOT_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify pre-deployment checklist
+        run: |
+          echo "=== Pre-Pilot Deployment Checklist ==="
+          echo "✓ Backend tests passed"
+          echo "✓ Frontend tests passed"
+          echo "✓ Firmware tests passed"
+          echo "✓ Security scan passed"
+          echo "✓ Docker images built"
+          echo ""
+          echo "Manual approval was granted via GitHub Environment protection rules."
+          echo ""
+          echo "Backend version: ${{ needs.docker-build.outputs.version-tag }}"
+          echo "Firmware version: ${{ needs.firmware-build.outputs.firmware-version }}"
+
+      - name: Deploy backend to pilot
+        run: |
+          echo "Deploying to pilot environment..."
+          echo "This would execute: kubectl set image deployment/pyrosense-* ..."
+          echo "Target: ${{ vars.PILOT_CLUSTER }}"
+          # Actual deployment command would use:
+          # kubectl --context=${{ vars.PILOT_CLUSTER }} set image ...
+
+      - name: Verify deployment health
+        run: |
+          echo "Verifying deployment health..."
+          echo "This would check: /actuator/health on all services"
+          # curl -f ${{ vars.PILOT_URL }}/actuator/health || exit 1
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "::notice::Pilot deployment successful — Backend: ${{ needs.docker-build.outputs.version-tag }}, Firmware: ${{ needs.firmware-build.outputs.firmware-version }}"

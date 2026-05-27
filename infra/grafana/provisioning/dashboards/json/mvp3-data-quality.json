@@ -1,0 +1,184 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "MVP3 - Data Quality",
+  "uid": "mvp3-data-quality",
+  "tags": ["mvp3", "quality", "telemetry"],
+  "panels": [
+    {
+      "title": "Data Quality Score",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_data_quality_score",
+          "legendFormat": "Data Quality"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 60 },
+              { "color": "yellow", "value": 75 },
+              { "color": "green", "value": 90 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Signal Quality Score",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_signal_quality_score",
+          "legendFormat": "Signal Quality"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 40 },
+              { "color": "yellow", "value": 70 },
+              { "color": "green", "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Pilot Data Quality Average",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_pilot_data_quality_average",
+          "legendFormat": "Pilot Avg"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "orange", "value": 60 },
+              { "color": "green", "value": 80 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Telemetry Rejection Rate (All Types)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_signature_invalid_total[5m]) + rate(pyrosense_mvp3_replay_detected_total[5m])",
+          "legendFormat": "Security Rejections/s"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_low_signal_quality_total[5m])",
+          "legendFormat": "Quality Rejections/s"
+        },
+        {
+          "expr": "rate(pyrosense_mvp3_clock_drift_total[5m])",
+          "legendFormat": "Clock Drift/s"
+        }
+      ]
+    },
+    {
+      "title": "Offline Queue Flush Events",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(pyrosense_mvp3_offline_queue_flush_total[5m])",
+          "legendFormat": "Flush Events/s"
+        }
+      ]
+    },
+    {
+      "title": "Low Signal Events (24h)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_low_signal_quality_total[24h])",
+          "legendFormat": "Low Signal (24h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 50 },
+              { "color": "red", "value": 200 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Clock Drift Events (24h)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
+      "targets": [
+        {
+          "expr": "increase(pyrosense_mvp3_clock_drift_total[24h])",
+          "legendFormat": "Clock Drift (24h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 30 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Offline Duration Maximum",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+      "targets": [
+        {
+          "expr": "pyrosense_mvp3_device_offline_duration_seconds",
+          "legendFormat": "Max Offline"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 1800 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 37,
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m"
+}

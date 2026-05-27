@@ -1,6 +1,6 @@
 # PyroSense AI Platform - TODO & Progress Tracker
 
-## Status: MVP 1 Complete | MVP 2 Complete | Audit Done | Pilot Transition Planned
+## Status: MVP 1 Complete | MVP 2 Complete | MVP 3 Complete | Pilot CONDITIONAL GO (pending hardware 24h test + electrician)
 
 ---
 
@@ -398,6 +398,14 @@
 - [x] docs/api-gateway.md (routing, filters, security, rate limiting, header propagation, CORS, error masking)
 - [x] docs/observability.md (stack, actuator, business metrics, tracing, logging, alerts, dashboards, config)
 - [x] docs/pilot-transition-plan.md (hardware, certification, cloud, insurance, pilot 10/100/1000, budget, roadmap 12 mois)
+- [x] docs/mvp3-cadrage.md (cadrage complet 18 livrables: perimetre, hardware, firmware, MQTT, enrollment, securite IoT, labo, terrain, roadmap)
+- [x] docs/edge-cloud-architecture.md (architecture edge-cloud detaillee: sequences, responsabilites, features edge/cloud, offline 72h, compression, versioning, compat firmware/backend)
+- [x] docs/hardware-prototype-strategy.md (comparaison 3 options prototype: A lab BT 250 EUR, B non-invasif 765 EUR, C pre-certif 6050 EUR; BOM, risques, recommandations progressives, interfaces, validation expert)
+- [x] docs/firmware-architecture.md (architecture firmware ESP32-S3 complete: ESP-IDF 5.x, 8 modules, 4 tasks FreeRTOS, 7 etats device, payloads types, erreurs, logs, tests, OTA, pseudo-code)
+- [x] docs/firmware-getting-started.md (guide demarrage firmware: build host, build ESP32, config, tests, MQTT, troubleshooting)
+- [x] docs/mqtt-protocol-v1.md (protocole MQTT v1 complet: 6 topics, 7 payloads, securite HMAC/anti-replay, pipeline validation 10 etapes, codes erreur, versioning)
+- [x] docs/device-provisioning.md (protocole enrolement securise: claim token, credentials, rotation, revocation, rate limiting, audit)
+- [x] firmware/pyrosense-device/ (squelette firmware complet: 8 modules, mock sensors, state machine, MQTT, offline queue, HMAC, 43 tests host)
 - [x] docs/mvp2-plan.md (scope, bounded contexts, 22 user stories, roles, screens, endpoints, events, tables, rules, roadmap 6 sprints)
 - [x] docs/mvp2-testing-strategy.md (strategie tests MVP 2, inventaire 863+ backend + 132+ frontend, objectifs couverture, CI pipeline, regles critiques)
 - [x] docs/mvp2-local-run.md (Docker Compose MVP 2, profil mvp2, architecture, ports, modes dev, scripts, Grafana)
@@ -433,7 +441,7 @@
 - [x] WebSocket real-time dashboard (Sprint F: STOMP/SockJS, live toasts, connection indicator)
 - [x] PDF report generation (OpenPDF) — implemented in pyrosense-reporting-service
 - [ ] Mobile push notifications (Firebase)
-- [ ] Keycloak realm export (users, roles, client configuration)
+- [x] Keycloak realm export (users, roles, client configuration) — infra/keycloak/realm-export.json + init-keycloak.sh
 
 ### Phase 6: MVP 2 — Dashboard (DELIVERED — 6 sprints committed)
 
@@ -811,7 +819,209 @@
 #### Documentation — DONE
 - [x] docs/audit.md (architecture, modele, API, securite, PII, pagination, usage)
 
-### Phase 7: Pilote Terrain (docs/pilot-transition-plan.md)
+### Phase MVP 3.0: MQTT Protocol v1 (docs/mqtt-protocol-v1.md)
+
+#### Documentation — DONE
+- [x] docs/mqtt-protocol-v1.md (specification complete: topics, payloads, securite, validation pipeline, QoS, error codes, versioning)
+
+#### Backend Protocol Validation (pyrosense-ingestion-service) — DONE
+- [x] MqttProtocolConstants.java (schema versions, limits, topic patterns)
+- [x] TelemetryPayloadV1.java (record: 11 features + security block)
+- [x] HeartbeatPayloadV1.java (record: state, uptime, RSSI, buffer)
+- [x] DeviceEventPayloadV1.java (record: 7 event types, severity, context)
+- [x] ProvisioningRequestPayloadV1.java (record: claim token, capabilities)
+- [x] ProvisioningResponsePayloadV1.java (record: MQTT config, telemetry config, security config)
+- [x] DeviceCommandPayloadV1.java (record: 6 command types, payload map)
+- [x] CommandAckPayloadV1.java (record: status enum)
+- [x] PayloadValidator.java (schema version, topic coherence, timestamp freshness, field ranges, drain mode 72h)
+- [x] SignatureVerifier.java (HMAC-SHA256, constant-time comparison, signature removal before compute)
+- [x] AntiReplayGuard.java (nonce uniqueness, sequence monotonicity, messageId dedup, pluggable stores)
+- [x] ProtocolValidationPipeline.java (5-step pipeline: validate → device auth → signature → anti-replay → firmware track)
+
+#### Backend Tests — DONE (30 tests)
+- [x] PayloadValidatorTest (10 tests: schema, mismatch, timestamp, drain, ranges, nonce, heartbeat, events)
+- [x] SignatureVerifierTest (6 tests: valid, invalid, null key, empty key, disabled string, tampered)
+- [x] AntiReplayGuardTest (7 tests: first message, duplicate messageId, nonce reuse, sequence regression, equal seq, increasing, independent devices)
+- [x] ProtocolValidationPipelineTest (8 tests: valid, revoked, unknown, replay, duplicate msg, sequence regression, old timestamp, firmware track)
+
+#### Firmware Protocol Conformance — DONE
+- [x] Topic format aligned to v1: pyrosense/v1/{tenantId}/{deviceId}/{messageType}
+- [x] MqttClient.set_tenant_id() for topic construction
+- [x] PayloadBuilder: messageId (UUID v4) added to every telemetry payload
+- [x] PayloadBuilder: isDrain flag for buffer drain mode
+- [x] Tests updated: topic v1 assertion, messageId uniqueness, isDrain modes
+
+### Phase MVP 3.1: Secure Device Provisioning (docs/device-provisioning.md)
+
+#### Domain Model — DONE
+- [x] ClaimToken (single-use, time-limited, SHA-256 hashed, invalidation)
+- [x] DeviceCredential (HMAC key, hash-stored, versioned, revocable)
+- [x] CredentialStatus enum (ACTIVE, REVOKED)
+- [x] DeviceProvisioningSession (audit trail: serial, model, firmware, IP, status, failure reason)
+
+#### Events — DONE
+- [x] DeviceClaimTokenCreatedEvent (device.claim_token.created)
+- [x] DeviceCredentialRotatedEvent (device.credential.rotated)
+- [x] DeviceProvisionedEvent (existing, reused)
+- [x] DeviceRevokedEvent (existing, reused)
+
+#### Ports In (Use Cases) — DONE
+- [x] CreateClaimTokenUseCase (generate single-use token, configurable validity)
+- [x] DeviceProvisioningUseCase (claim token verification, credential issuance, MQTT config)
+- [x] RotateDeviceCredentialUseCase (revoke old + issue new, version increment)
+- [x] RevokeDeviceCredentialUseCase (revoke all credentials + claim tokens, device REVOKED)
+
+#### Ports Out (Repositories) — DONE
+- [x] ClaimTokenRepositoryPort (save, findActive, invalidateAll, countRecentByIp)
+- [x] DeviceCredentialRepositoryPort (save, findActive, findAll, nextVersion)
+- [x] ProvisioningSessionRepositoryPort (save, findByDevice, countRecentFailedByIp)
+- [x] ProvisioningAuditPort (log claim, provisioning, rotation, revocation)
+
+#### Use Case Implementations — DONE
+- [x] CreateClaimTokenService (validates state, invalidates old tokens, publishes event, audits)
+- [x] DeviceProvisioningService (rate limit, serial lookup, token verify, credential issue, session audit)
+- [x] RotateDeviceCredentialService (revoke old, issue new, audit, publish)
+- [x] RevokeDeviceCredentialService (revoke all creds + tokens, revoke device, audit, publish)
+
+#### REST API — DONE
+- [x] POST /api/v1/devices/{deviceId}/claim-token (ADMIN/DEVICE_MANAGER/PLATFORM_ADMIN/TENANT_ADMIN)
+- [x] POST /api/v1/devices/provision (public — called by device, rate-limited)
+- [x] POST /api/v1/devices/{deviceId}/credentials/rotate (ADMIN/DEVICE_MANAGER/PLATFORM_ADMIN)
+- [x] POST /api/v1/devices/{deviceId}/revoke (ADMIN/DEVICE_MANAGER/PLATFORM_ADMIN)
+
+#### Persistence — DONE
+- [x] JdbcClaimTokenRepository (upsert, active query, invalidation)
+- [x] JdbcDeviceCredentialRepository (upsert, version tracking, active query)
+- [x] JdbcProvisioningSessionRepository (upsert, IP-based rate limit query)
+- [x] LoggingProvisioningAuditAdapter (structured audit logs, no secrets)
+- [x] Flyway V003: claim_tokens, device_credentials, provisioning_sessions (with indexes)
+
+#### Security — DONE
+- [x] Claim token: single-use, time-limited (24h default), hash-stored
+- [x] Credentials: HMAC key shown once, SHA-256 hash stored, never returned again
+- [x] Rate limiting: 10 failed attempts per IP per 15 minutes
+- [x] Brute force: failed session tracking per IP
+- [x] Replay: token consumed atomically, credential versioned
+- [x] Audit: all operations logged without secrets
+- [x] Revocation: immediate effect on credentials + tokens + device status
+- [x] Provisioning endpoint public (device has no JWT yet), protected by claim token
+
+#### Tests — DONE (26 tests)
+- [x] ClaimTokenTest (8 tests: create, match, mismatch, consume, double-consume, expired, consume-expired, unique)
+- [x] DeviceCredentialTest (6 tests: issue, revoke, revoke-idempotent, unique-keys, version, hash-format)
+- [x] CreateClaimTokenServiceTest (5 tests: success, not-found, revoked, active-state, invalidates-old)
+- [x] DeviceProvisioningServiceTest (7 tests: success, rate-limit, unknown-serial, invalid-token, expired, revoked, failed-session)
+- [x] RotateDeviceCredentialServiceTest (4 tests: revoke-old-issue-new, without-existing, revoked-device, unknown)
+- [x] RevokeDeviceCredentialServiceTest (4 tests: revokes-all, unknown, idempotent, invalidates-tokens)
+- [x] ProvisioningSecurityTest (5 tests: role annotations, public provision, request validation)
+
+#### Configuration — DONE
+- [x] pyrosense.provisioning.claim-token-validity (default PT24H)
+- [x] pyrosense.mqtt.broker-uri, pyrosense.mqtt.port
+
+#### Documentation — DONE
+- [x] docs/device-provisioning.md (workflow diagram, domain model, REST API, security properties, DB schema, config)
+
+### Phase 7: Edge-Cloud Architecture Implementation (docs/edge-cloud-architecture.md)
+
+#### Edge — Firmware ESP32-S3 (FreeRTOS)
+- [ ] Acquisition task: ADC DMA 16kHz, buffer circulaire, ISR 1s
+- [ ] Processing task: RMS (1s), THD/FFT 1024pts (10s), crest factor, zero-crossing
+- [ ] Processing task: arcEnergy (50-100kHz band), transientCount, hfNoiseLevel
+- [ ] Processing task: temperature (deltaT, rate of change °C/min), powerFactor
+- [ ] Processing task: signalQuality score (self-diagnostic 0-100)
+- [ ] Communication task: MQTT 5.0 client, TLS 1.3, X.509 mTLS (ATECC608B)
+- [ ] Communication task: CBOR encoding, LZ4 compression, HMAC-SHA256 signature
+- [ ] Communication task: buffer manager SPIFFS (72h, mode degrade, FIFO eviction)
+- [ ] Communication task: drain algorithm (10 msg/s throttled, events first)
+- [ ] Health task: NTP sync, watchdog feed, OTA check, cert rotation check
+- [ ] State machine: BOOTING → PROVISIONING → CONNECTING → LEARNING → ACTIVE → OFFLINE
+- [ ] Provisioning mode: CSR generation (ATECC608B), capability declaration
+- [ ] OTA: A/B partitions, ECDSA signature verify, rollback auto (3 boot failures)
+- [ ] Offline detection: mode REDUCED (24h), MINIMAL (48h), EMERGENCY (72h+)
+- [ ] Time subsystem: SNTP client, monotonic sequence counter, drift monitor
+- [ ] Payload versioning: v=2 field in every message, additive-only schema
+
+#### Cloud — Backend Java/Spring Boot (Hexagonal)
+- [ ] Ingestion adapter: CBOR decoder (cbor-java), LZ4 decompressor (lz4-java)
+- [ ] Ingestion adapter: PayloadVersionRouter (v1 JSON legacy + v2 CBOR features)
+- [ ] Ingestion adapter: MQTT 5.0 user properties extraction (cert-fp, fw-ver, payload-ver, compress)
+- [ ] Ingestion adapter: HMAC-SHA256 signature verification
+- [ ] Ingestion adapter: buffer drain mode (relaxed timestamp validation 72h window)
+- [ ] Ingestion port: IngestFeaturesUseCase (FeatureFrame domain model)
+- [ ] Ingestion port: IngestEventUseCase (ElectricalEvent domain model)
+- [ ] Device port: EnrollDeviceUseCase (CSR validation, capability negotiation, cert issuance)
+- [ ] Device port: RotateCertificateUseCase (nonce challenge, re-sign, grace period)
+- [ ] Device port: CertificateAuthorityPort (cloud KMS signing adapter)
+- [ ] Device port: CrlPublisherPort (S3 CRL file adapter)
+- [ ] Device port: MqttCommandPublisherPort (EMQX publish QoS 2)
+- [ ] Signal analysis: input FeatureFrame (pre-computed features, not raw measurements)
+- [ ] Signal analysis: calibration coefficients per device (gain, offset per sensor)
+- [ ] Signal analysis: data quality scoring (per device, impact on risk weight)
+- [ ] Feature store: TimescaleDB continuous aggregates (1min, 15min, 1h)
+- [ ] Feature store: retention policy (raw 90j, compressed 7j, aggregates permanent)
+- [ ] Feature store: Parquet export batch job (S3, daily)
+
+#### Communication Contract
+- [ ] MQTT 5.0 topics: features/periodic, features/stats, events/electrical, status/heartbeat, status/health, command/*
+- [ ] Payload schema v2: CBOR features frame (~180 bytes), JSON events (~300 bytes)
+- [ ] Capability negotiation protocol: device declares → cloud responds with config
+- [ ] Backward compatibility: cloud supports payload v1 (simulator) + v2 (sensor) simultaneously
+- [ ] Device config push: featureInterval, statsInterval, heartbeatInterval, requiredFeatures
+
+#### Infrastructure
+- [ ] EMQX broker cluster (2 noeuds, Helm chart, mTLS termination, ACL per device)
+- [ ] PKI: internal CA (cloud KMS), cert-manager, OCSP/CRL endpoint
+- [ ] Shared subscriptions: $share/ingestion/pyrosense/+/+/features/# (load balancing)
+
+### Phase 7a: Hardware Prototype (docs/hardware-prototype-strategy.md + docs/firmware-architecture.md)
+
+#### Firmware Foundation (docs/firmware-architecture.md)
+- [x] Projet ESP-IDF 5.x: CMakeLists, partitions.csv, sdkconfig.defaults
+- [x] Modules: config (DeviceConfig, StateMachine), sensors (ISensorProvider, MockSensorProvider, SensorRegistry)
+- [x] Modules: signal_processing (FeatureExtractor, RmsCalculator, SignalQuality)
+- [x] Modules: telemetry (PayloadBuilder, HeartbeatBuilder), connectivity (MqttClient, WifiManager)
+- [x] Modules: security (HmacSigner, NonceGenerator), storage (OfflineQueue), diagnostics (Logger, SelfTest)
+- [x] State machine: 7 etats (BOOTING, PROVISIONING, CONNECTING, ACTIVE, OFFLINE_BUFFERING, DEGRADED, ERROR, REVOKED)
+- [x] Host unit test framework: CMake host build + assert-based tests (43 tests, 7 suites)
+- [ ] Component hal/: interfaces hardware abstraites (hal_i2c.h, hal_spi.h, hal_gpio.h, hal_adc.h)
+- [ ] Component hal/mock/: mocks ESP-IDF pour tests host complets
+- [ ] Task creation FreeRTOS: 4 tasks pinned (acquisition C1/P4, processing C0/P3, comms C0/P2, diag C0/P1)
+- [ ] Inter-task queues FreeRTOS: raw_samples (64), feature (32), event (16), command (8)
+- [ ] CI pipeline: build + host tests + static analysis (cppcheck) + size check
+
+#### Sprint 3.1 — Option A: Lab Basse Tension (~250 EUR)
+- [ ] Commande composants: ESP32-S3 DevKitC-1 N16R8, ADS1115, MAX31865, PT100, generateur signal
+- [ ] Assemblage breadboard: ADC I2C + temperature SPI + LED status
+- [ ] Firmware: driver ADS1115 (I2C, 860 SPS, 4 canaux differentiels)
+- [ ] Firmware: driver MAX31865 (SPI, 3-wire PT100, compensation fil)
+- [ ] Firmware: acquisition task (DMA-like timer ISR → buffer circulaire)
+- [ ] Firmware: processing task (RMS, THD/FFT 1024pts sur signal generateur)
+- [ ] Firmware: MQTT 5.0 publish features CBOR (WiFi, sans mTLS pour labo)
+- [ ] Validation: comparaison valeurs mesurees vs valeurs injectees (±5% RMS, ±10% THD)
+- [ ] Validation: stabilite 24h sans crash/watchdog/memory leak
+
+#### Sprint 3.3 — Option B: Non-Invasif Supervise (~765 EUR)
+- [ ] Commande composants: CT YHDC SCT-013-030, ZMPT101B, HLK-PM01, boitier DIN rail
+- [ ] Installation par electricien habilite B2V+ (CT sur circuit reel, alimentation DIN)
+- [ ] Firmware: calibration CT (facteur conversion A → mA, offset zero-crossing)
+- [ ] Firmware: calibration tension (rapport transformateur ZMPT101B)
+- [ ] Firmware: detection micro-arcs (bande 50-100 kHz, seuil adaptatif)
+- [ ] Firmware: mode offline SPIFFS (buffer 72h, drain algorithm)
+- [ ] Firmware: mTLS X.509 avec ATECC608B (CSR provisioning)
+- [ ] Validation labo: injection defauts connus (arc serie, surcharge, harmoniques)
+- [ ] Validation terrain: 1 tableau electrique, 2 circuits, 72h monitoring supervise
+- [ ] Verification: precision ±2% RMS, ±5% THD vs reference Fluke 435-II
+
+#### Sprint 3.6+ — Option C: Pre-Certification (si budget valide, ~6050 EUR)
+- [ ] Conception PCB 4 couches (KiCad, separation analogique/numerique)
+- [ ] Fabrication PCB prototype (JLCPCB, 5 exemplaires)
+- [ ] Tests CEM pre-conformite (chambre semi-anechoique ou pre-scan)
+- [ ] Tests thermiques (chambre climatique -10°C / +60°C)
+- [ ] Validation precision ±1% (etalonnage vs reference certifiee)
+- [ ] Dossier technique pre-IEC 61439 (schemas, nomenclature, tests)
+
+### Phase 7b: Pilote Terrain (docs/pilot-transition-plan.md)
 
 #### Mois 1-3 — Prototype Labo
 - [ ] Sélection capteurs (pinces ampéro, sondes T°, détecteurs arc)
@@ -1182,60 +1392,800 @@
 | Docker Compose | FAIT | Profil mvp2, Dockerfile par service, scripts, Grafana dashboard |
 | Documentation | FAIT | 25+ documents, README enrichi, production readiness checklist |
 
-### Ce qui reste (non bloquant pour le prototype)
+### Ce qui reste (non bloquant pour le pilote terrain)
 
 - [ ] Fix MEDIUM: Identity-service Flyway migrations (replace in-memory repos)
-- [ ] ML-based anomaly detection service (NoOp adapter ready)
-- [ ] Federated learning module
-- [ ] Mobile push notifications (Firebase)
-- [ ] Keycloak realm export (users, roles, client configuration)
+- [ ] Keycloak realm export + script init (bloquant avant pilote reel)
+- [ ] ML-based anomaly detection service (NoOp adapter ready, prevu MVP 4 post-pilote)
+- [ ] mTLS X.509 + ATECC608B (prevu MVP 4)
+- [ ] OTA firmware securise (prevu MVP 4)
+- [ ] Mobile push notifications (PWA, prevu MVP 4)
 - [ ] Contract tests Spring Cloud Contract
-- [ ] Load tests K6/Gatling (1000 devices)
+- [ ] Load tests K6/Gatling (1000 devices, prevu MVP 4)
 - [ ] Chaos testing
 
 ---
 
-## Risques Techniques
+## Risques Techniques (MVP 3 — Pre-Pilote)
 
 | # | Risque | Impact | Probabilite | Mitigation |
 |---|--------|--------|:-----------:|-----------|
-| 1 | Faux positifs > 5% sur donnees reelles | Perte confiance | Moyenne | Feedback loop false positive, phase labo obligatoire |
-| 2 | Seuils detection calibres sur simulation | Detection inefficace | Haute | Recalibration sur donnees terrain (3 mois minimum) |
-| 3 | PostgreSQL single-instance sans replicas | Perte donnees | Moyenne | Migration vers managed DB pour pilote |
-| 4 | Keycloak non configure (realm vide) | Pas d'auth en pilote | Haute | Script d'initialisation realm a creer |
-| 5 | ML absent (methodes statistiques) | Patterns complexes non detectes | Moyenne | Suffisant pour MVP, prevu MVP 3 |
-| 6 | Pas de HA / pas de DR | Indisponibilite | Moyenne | Acceptable pour pilote 10 capteurs |
-| 7 | Donnees simulees ≠ donnees reelles | Architecture non validee sous charge | Haute | Tests de charge obligatoires avant 100+ capteurs |
-| 8 | JaCoCo "Unsupported class file major version 69" | Coverage reports indisponibles | Faible | Upgrader JaCoCo quand fix disponible |
+| 1 | Firmware instable sur hardware reel (ESP32-S3) | Pilote bloque | Moyenne | Test labo 24h obligatoire avant terrain (SC-04/SC-07) |
+| 2 | Interferences WiFi en batiment technique | Perte donnees | Moyenne | Buffer offline 72h + LoRaWAN en backup (planifie) |
+| 3 | Faux positifs detection > 5% | Perte confiance gestionnaire | Moyenne | Seuils ajustables + feedback loop + phase labo |
+| 4 | Compromission physique device | Extraction credentials | Faible | Revocation immediate + rotation + mTLS planifie |
+| 5 | Perte connectivite > 72h | Depassement buffer SPIFFS | Faible | Eviction FIFO + alerte offline Prometheus |
+| 6 | Derive thermique capteur | Mesures incorrectes | Faible | Calibration terrain + compensation + self-diagnostic |
+| 7 | Seuils detection calibres sur simulation uniquement | Detection inefficace terrain | Haute | Recalibration 3 mois donnees reelles obligatoire |
+| 8 | PostgreSQL single-instance sans replicas | Perte donnees pilote | Moyenne | Migration managed DB avant extension 100 capteurs |
+| 9 | Keycloak non configure (realm vide) | Pas d'auth en pilote | Haute | Script d'initialisation realm a creer (bloquant) |
+| 10 | Pas de HA / pas de DR | Indisponibilite | Moyenne | Acceptable pour pilote 10 capteurs |
+| 11 | MQTT TLS non valide end-to-end | Canal non chiffre | Moyenne | Valider TLS 8883 avant deploiement terrain |
+| 12 | Absence OTA firmware | Impossibilite mise a jour terrain | Moyenne | Mise a jour manuelle USB pour pilote 10 devices |
+
+### Items bloquants avant pilote terrain
+
+- [ ] Firmware valide sur hardware ESP32-S3 pendant 24h (stabilite, memory, watchdog)
+- [ ] Electricien habilite B2V minimum identifie et disponible
+- [ ] MQTT TLS (port 8883) valide end-to-end avec certificat
+- [ ] Keycloak realm 'pyrosense' configure (roles, client, utilisateurs pilote)
+
+### Items recommandes (non bloquants)
+
+- [ ] Backup LoRaWAN configure
+- [ ] Assurance RC Pro a jour
+- [ ] Load test 10 devices simultanes (validation charge)
 
 ---
 
-## Proposition MVP 3
+## Proposition MVP 4
 
-### Objectif : Pilote Terrain + Intelligence
+### Objectif : Industrialisation Post-Pilote + Intelligence
+
+> Le MVP 3 est termine (documentation, firmware prototype, pipeline securise, CI/CD, observabilite).
+> Le MVP 4 demarre apres validation terrain (3-6 mois de donnees pilote).
 
 | Sprint | Duree | Livrable |
 |--------|-------|---------|
-| MVP 3.1 | 4 sem | Keycloak realm complet + script init + realm export |
-| MVP 3.2 | 4 sem | ML v1: Isolation Forest sur donnees telemetrie (MachineLearningInferencePort) |
-| MVP 3.3 | 4 sem | Application mobile PWA (notifications push, vue alertes) |
-| MVP 3.4 | 4 sem | Load testing (K6, 1000 devices, SLA validates) |
-| MVP 3.5 | 4 sem | Infrastructure cloud (Terraform, K8s, managed services) |
-| MVP 3.6 | 4 sem | Firmware IoT prototype (ESP32 + MQTT + certificats) |
+| MVP 4.1 | 4 sem | Keycloak realm complet + script init + realm export |
+| MVP 4.2 | 4 sem | ML v1: Isolation Forest + LSTM sur donnees terrain (MachineLearningInferencePort) |
+| MVP 4.3 | 4 sem | mTLS X.509 + ATECC608B secure element + EMQX broker |
+| MVP 4.4 | 4 sem | OTA firmware securise (A/B partitions, ECDSA, rollback auto) |
+| MVP 4.5 | 4 sem | Application mobile PWA (notifications push, vue alertes, offline) |
+| MVP 4.6 | 4 sem | Load testing K6 (100-1000 devices) + Infrastructure cloud (Terraform, K8s) |
 
-### Pre-requis MVP 3
+### Pre-requis MVP 4
 
-1. Donnees terrain reelles (minimum 3 mois de collecte pour calibration ML)
-2. Selection hardware capteurs (decision technique)
-3. Cloud provider selectionne (decision budgetaire)
-4. Equipe firmware disponible (competence embarque)
+1. Pilote terrain 10 capteurs valide (3 mois minimum de donnees reelles)
+2. Resultats labo 24h satisfaisants (firmware stable, no memory leak, no watchdog)
+3. Faux positifs < 5% sur donnees terrain (seuils calibres)
+4. Cloud provider selectionne (decision budgetaire)
+5. Budget certification disponible (IEC 61439, CEM, thermique)
 
-### Ce que MVP 3 ne couvre PAS
+### Ce que MVP 4 couvre
 
-- Certification electrique (IEC 61439, NF C 15-100) — necessite un organisme notifie
+- **Securite avancee** : mTLS, secure element, MQTT ACL per device, OTA signe
+- **Intelligence** : ML sur 3+ mois de donnees reelles, feedback loop boucle fermee
+- **Industrialisation** : PCB 4 couches, tests CEM/thermiques, dossier pre-certification
+- **Scalabilite** : 100+ capteurs, Kubernetes multi-AZ, managed services
+- **Mobile** : PWA notifications push, vue terrain electricien
+
+### Ce que MVP 4 ne couvre PAS
+
+- Certification electrique finale (IEC 61439, NF C 15-100) — organisme notifie
 - Assurance RC Pro — processus juridique independant
 - Commercialisation (tarification, support, SLA contractuels) — decision business
+- Multi-region / DR (prevu production commerciale)
+
+### Phase MVP 3.2: Real Device Ingestion Adaptation (pyrosense-ingestion-service) — DONE
+
+#### Domain Model — DONE
+- [x] IngestionRejectionReason enum (8 codes: INVALID_SIGNATURE, REPLAY_DETECTED, DEVICE_REVOKED, UNKNOWN_DEVICE, INVALID_SCHEMA_VERSION, PAYLOAD_TOO_OLD, INVALID_MEASUREMENT_RANGE, LOW_SIGNAL_QUALITY)
+- [x] SignalQualityScore value object (5 levels: EXCELLENT, GOOD, DEGRADED, POOR, CRITICAL, with thresholds)
+- [x] DeviceClockDrift value object (4 severities: NONE, MINOR, MODERATE, SEVERE)
+
+#### Domain Events — DONE
+- [x] RealDeviceTelemetryReceivedEvent (ingestion.real_device.telemetry.received)
+- [x] TelemetryRejectedEvent (ingestion.telemetry.rejected)
+- [x] DeviceClockDriftDetectedEvent (ingestion.device.clock_drift_detected)
+- [x] LowSignalQualityDetectedEvent (ingestion.device.low_signal_quality)
+
+#### Domain Validation — DONE
+- [x] TelemetryQualityValidator (signal quality, noise floor, HF noise, sampling window)
+- [x] DeviceClockDriftDetector (device vs server timestamp comparison)
+
+#### Ports Out — DONE
+- [x] DeviceAuthenticationPort (device status, HMAC key retrieval, firmware tracking)
+- [x] DeviceSignatureVerificationPort (HMAC-SHA256 verification)
+- [x] DeviceCapabilityLookupPort (device capabilities, real vs simulator detection)
+
+#### Adapters Out — DONE
+- [x] HttpDeviceAuthenticationAdapter (device-service REST client, cached, with metrics)
+- [x] HttpDeviceCapabilityAdapter (device-service REST client, cached)
+- [x] RedisAntiReplayStores (NonceStore, SequenceStore, MessageIdStore — Redis-backed)
+- [x] DeviceStatusCheckerAdapter (bridges DeviceAuthenticationPort to ProtocolValidationPipeline)
+
+#### MQTT Listener Upgrade — DONE
+- [x] V1 topic subscription: pyrosense/v1/+/+/telemetry|heartbeat|events
+- [x] Legacy topic subscription (simulator backward compat): pyrosense/+/+/telemetry|heartbeat|events
+- [x] Full ProtocolValidationPipeline integration on v1 path
+- [x] Quality assessment (TelemetryQualityValidator) on every v1 message
+- [x] Clock drift detection (DeviceClockDriftDetector) on every v1 message
+- [x] Rejection handling: store + event + specific metric counters
+
+#### Metrics — DONE
+- [x] real_device_telemetry_received_total (v1 ingestions)
+- [x] telemetry_signature_invalid_total (HMAC failures)
+- [x] telemetry_replay_detected_total (replay attacks)
+- [x] low_signal_quality_total (poor/critical signal)
+- [x] device_clock_drift_total (moderate/severe drift)
+
+#### REST API — DONE
+- [x] GET /api/v1/devices/quality/summary (aggregated quality metrics)
+- [x] GET /api/v1/devices/quality/devices/{deviceId} (per-device quality)
+- [x] @PreAuthorize: PLATFORM_ADMIN, TENANT_ADMIN, DEVICE_MANAGER
+
+#### Configuration — DONE
+- [x] ProtocolValidationConfig (wires pipeline beans)
+- [x] RedisAntiReplayStores (nonce TTL 24h, messageId TTL 24h)
+
+#### Tests — DONE
+- [x] SignalQualityScoreTest (10 tests: levels, boundaries, alerts, minimums)
+- [x] DeviceClockDriftTest (5 tests: none, minor, moderate, severe, future)
+- [x] IngestionRejectionReasonTest (3 tests: mappings, unknown codes, descriptions)
+- [x] TelemetryQualityValidatorTest (7 tests: good, low signal, noise, floor, window, multiple)
+- [x] DeviceClockDriftDetectorTest (2 tests: explicit timestamp, current time)
+- [x] RealDeviceIngestionTest (7 tests: valid accepted, schema rejected, mismatch, revoked, duplicate, sequence regression, reason mapping)
+
+#### Documentation — DONE
+- [x] docs/real-device-ingestion.md (architecture, topics, validation pipeline, rejection handling, quality, drift, events, metrics, REST, ports, security, DB, config)
+
+### Phase MVP 3.3: Data Quality Strategy (pyrosense-ingestion-service) — DONE
+
+#### Domain Model — DONE
+- [x] DataQualityAssessment aggregate (QualityGrade A-F, composite scoring 0-100, 9 criteria, auto-issue detection)
+- [x] DataQualityIssue entity (10 IssueTypes, 4 severities, OPEN/REVIEWED/DISMISSED lifecycle)
+- [x] MissingDataRatio value object (compute, isAcceptable/isWarning/isCritical)
+- [x] MeasurementRangeStatus value object (compute, hasIssues, isCritical)
+- [x] SensorNoiseLevel value object (HF noise, current/voltage stddev, isExcessive)
+- [x] DataCompleteness value object (heartbeat + telemetry completeness, sequence issues)
+- [x] DeviceCalibrationStatus value object (unknown, calibrated, isExpired, isValid)
+- [x] SignalQualityLevel enum (5 levels, fromScore, isTrustworthy, requiresReview)
+
+#### Domain Events — DONE
+- [x] DataQualityIssueDetectedEvent (published for HIGH/CRITICAL issues)
+- [x] DeviceDataQualityScoreUpdatedEvent (published on every assessment)
+
+#### Ports In (Use Cases) — DONE
+- [x] AssessTelemetryQualityUseCase (AssessCommand → DataQualityAssessment)
+- [x] ComputeDailyDeviceDataQualityUseCase (computeForDevice, computeForAllDevices)
+- [x] ListDataQualityIssuesQuery (IssueFilter, IssuePageResult, list, getById)
+- [x] MarkDataQualityIssueReviewedUseCase (ReviewCommand → DataQualityIssue)
+
+#### Ports Out — DONE
+- [x] DataQualityRepositoryPort (saveAssessment, findLatest, findHistory, CRUD issues)
+- [x] DeviceTelemetryStatsPort (TelemetryStats, countExpected/Received messages/heartbeats)
+
+#### Use Case Implementations — DONE
+- [x] AssessTelemetryQualityService (orchestrates stats, builds assessment, persists, publishes events)
+- [x] ComputeDailyDeviceDataQualityService (24h window computation)
+- [x] ListDataQualityIssuesService (paginated query with tenant isolation)
+- [x] MarkDataQualityIssueReviewedService (review/dismiss with tenant validation)
+
+#### REST API — DONE
+- [x] GET /api/v1/devices/{deviceId}/data-quality/latest
+- [x] GET /api/v1/devices/{deviceId}/data-quality/history?from=&to=
+- [x] GET /api/v1/data-quality/issues?deviceId=&status=&type=&page=&size=
+- [x] PATCH /api/v1/data-quality/issues/{id}/review
+- [x] @PreAuthorize: PLATFORM_ADMIN, TENANT_ADMIN, DEVICE_MANAGER, PROPERTY_MANAGER
+
+#### Persistence — DONE
+- [x] JdbcDataQualityRepository (full CRUD, row mappers)
+- [x] JdbcDeviceTelemetryStatsAdapter (SQL stats queries on electrical_telemetry + device_heartbeats)
+- [x] Flyway V007: data_quality_assessments + data_quality_issues tables with indexes
+
+#### Business Rules — DONE
+- [x] Grade F blocks critical alerts (allowsCriticalAlerts = false)
+- [x] Grade D+ excludes ML training (allowsMlTraining = false for C/D/F)
+- [x] Grade A-B allows full trust (isTrustworthy = true)
+- [x] Issues HIGH/CRITICAL publish events for notification
+- [x] Tenant isolation enforced on all queries
+
+#### Configuration — DONE
+- [x] UseCaseConfig: 4 new beans wired (assess, daily, list, review)
+
+#### Tests — DONE
+- [x] DataQualityAssessmentTest (27 tests: out of range, timestamps, sequences, missing data, signal, offline, grading, noise, firmware/calibration)
+- [x] AssessTelemetryQualityServiceTest (10 tests: healthy device, out of range, timestamps, sequences, missing data, signal, offline, events, persistence)
+
+#### Documentation — DONE
+- [x] docs/data-quality.md (model, scoring algorithm, criteria, API, events, rules, tests, config)
+
+### Phase MVP 3.4: Field Data Collection & ML Dataset (pyrosense-ingestion-service) — DONE
+
+#### Domain Model — DONE
+- [x] DatasetCandidate entity (status lifecycle: PENDING_LABEL → LABELED → VALIDATED → EXPORTED / REJECTED, quality tiers, exportability rules)
+- [x] DataLabel record (9-value taxonomy, 4 sources: TECHNICIAN/LAB/SYSTEM/MANUAL_REVIEW, confidence scoring)
+- [x] FieldObservation entity (pseudonymized, linked to intervention, with label)
+- [x] TechnicianFeedback record (intervention-linked, defect/false-positive, measurement details, toLabel())
+- [x] DefectConfirmation record (intervention+alert linked, risk reduction tracking, toLabel())
+- [x] FalsePositiveFeedback record (alert-linked, threshold adjustment suggestions, toLabel())
+- [x] DatasetExportJob entity (PENDING → RUNNING → COMPLETED/FAILED, format, filters)
+- [x] FeatureSummary record (14 aggregated features: RMS, THD, HF noise, temperature, power factor, signal quality)
+- [x] PseudonymizationService (HMAC-SHA256, deterministic, one-way, configurable key)
+
+#### Label Taxonomy (9 values) — DONE
+- [x] NORMAL, MICRO_ARC_SUSPECTED, MICRO_ARC_CONFIRMED, LOOSE_CONNECTION_CONFIRMED
+- [x] INSULATION_DEGRADATION_CONFIRMED, OVERLOAD_CONFIRMED, SENSOR_NOISE, FALSE_POSITIVE, INCONCLUSIVE
+
+#### Ports In (Use Cases) — DONE
+- [x] SubmitFieldFeedbackUseCase (FieldFeedbackCommand → TechnicianFeedback)
+- [x] QueryDatasetCandidatesUseCase (CandidateFilter → CandidatePageResult)
+- [x] RequestDatasetExportUseCase (ExportCommand → DatasetExportJob, getExportJob)
+
+#### Ports Out — DONE
+- [x] DatasetRepositoryPort (full CRUD: candidates, feedbacks, observations, confirmations, false positives, export jobs)
+- [x] DatasetAuditPort (logFeedbackSubmitted, logExportRequested, logExportCompleted, logCandidateLabeled)
+
+#### Use Case Implementations — DONE
+- [x] SubmitFieldFeedbackService (pseudonymizes device, persists, audits)
+- [x] QueryDatasetCandidatesService (pseudonymizes tenant, paginated query)
+- [x] RequestDatasetExportService (pseudonymizes tenant, creates job, audits)
+
+#### REST API — DONE
+- [x] POST /api/v1/field-feedback (PLATFORM_ADMIN, TENANT_ADMIN, ELECTRICIAN, DEVICE_MANAGER)
+- [x] GET /api/v1/dataset/candidates (PLATFORM_ADMIN, TENANT_ADMIN)
+- [x] POST /api/v1/dataset/export-jobs (PLATFORM_ADMIN, TENANT_ADMIN)
+- [x] GET /api/v1/dataset/export-jobs/{id} (PLATFORM_ADMIN, TENANT_ADMIN)
+
+#### Persistence — DONE
+- [x] JdbcDatasetRepository (full implementation, 7 tables)
+- [x] LoggingDatasetAuditAdapter (structured audit logging)
+- [x] Flyway V008: dataset_candidates, technician_feedbacks, field_observations, defect_confirmations, false_positive_feedbacks, dataset_export_jobs, data_labels
+
+#### Privacy & Security — DONE
+- [x] Pseudonymization HMAC-SHA256 at write time (device + tenant)
+- [x] No raw electrical data in dataset tables
+- [x] All exports audited
+- [x] Tenant isolation via pseudonymized tenant filter
+- [x] Labels preserve source traceability
+- [x] Feedback linked to intervention (mandatory)
+- [x] False positives feed threshold improvement
+
+#### Configuration — DONE
+- [x] UseCaseConfig: PseudonymizationService + 3 new use case beans
+- [x] pyrosense.dataset.pseudonymization-secret (configurable, default for dev)
+
+#### Tests — DONE (24 tests, 0 failures)
+- [x] DatasetCandidateTest (8 tests: lifecycle, quality tiers, exportability, labels, primary label, export, reject)
+- [x] DataLabelTest (5 tests: sources, isConfirmed, isHighConfidence)
+- [x] PseudonymizationServiceTest (7 tests: deterministic, different inputs, prefix, different keys, device/tenant methods, null)
+- [x] SubmitFieldFeedbackServiceTest (4 tests: pseudonymization, audit, false positive label, defect label)
+
+#### Documentation — DONE
+- [x] docs/field-data-collection.md (architecture, pipeline, models, API, pseudonymisation, controles qualite, privacy)
+- [x] docs/dataset-governance.md (principes, roles, cycle de vie, regles, controles, RGPD, environnement labo)
+- [x] docs/dataset-format-v1.md (schema, colonnes, formats, exemples, versioning, securite, limitations)
+
+### Phase MVP 3.5: Field Feedback Loop (pyrosense-risk-scoring-service) — DONE
+
+#### Domain Model — DONE
+- [x] FeedbackOutcome enum (CONFIRMED_DEFECT, FALSE_POSITIVE, INCONCLUSIVE, NO_DEFECT_FOUND)
+- [x] ScoringFeedback entity (device, alert, intervention, outcome, anomaly type, risk score at alert, source, comment)
+- [x] ScoringAdjustment record (AdjustmentType, AdjustmentMode, factory methods: confidenceBoost/confidenceReduction)
+- [x] FeedbackConfidenceEngine (pure domain logic: conservative decay-based adjustments)
+
+#### Confidence Adjustment Rules — DONE
+- [x] CONFIRMED_DEFECT: +0.05 × 0.8^n, max cumulative +0.20
+- [x] FALSE_POSITIVE: -0.03 × 0.8^n, max cumulative -0.15
+- [x] NO_DEFECT_FOUND: -0.01 (fixed, if confidence > 0.2)
+- [x] INCONCLUSIVE: no adjustment
+- [x] All adjustments in SUGGESTION_ONLY mode (no auto-apply)
+- [x] Bounds: confidence ∈ [0.0, 1.0], stop boost at 0.99, stop reduction at 0.1
+
+#### Ports In (Use Cases) — DONE
+- [x] ProcessFieldFeedbackUseCase (FieldFeedbackCommand → ScoringFeedback)
+- [x] GetFeedbackHistoryQuery (FeedbackFilter, FeedbackPageResult, FeedbackStats, getHistory, getStats, getAdjustmentHistory)
+
+#### Ports Out — DONE
+- [x] ScoringFeedbackRepositoryPort (saveFeedback, saveAdjustment, findByTenantAndDevice, countByOutcome, findAdjustments, countByOutcomeForTenant)
+
+#### Use Case Implementations — DONE
+- [x] ProcessFieldFeedbackService (save feedback → count outcomes → compute adjustment → save adjustment → metrics)
+- [x] GetFeedbackHistoryService (paginated history, stats aggregation, adjustment history)
+
+#### Kafka Consumer — DONE
+- [x] KafkaFeedbackEventListener (maintenance-events topic)
+- [x] Maps: maintenance.intervention.completed, maintenance.defect.confirmed, maintenance.false_positive.confirmed
+- [x] Result field mapping: DEFECT_CONFIRMED/ELECTRICAL_DEFECT → CONFIRMED_DEFECT, FALSE_POSITIVE → FALSE_POSITIVE, etc.
+
+#### REST API — DONE
+- [x] GET /api/v1/scoring/feedback/history (paginated, filters: tenantId, deviceId, anomalyType, from, to)
+- [x] GET /api/v1/scoring/feedback/stats (confirmed, false positives, inconclusive, adjustments counts)
+- [x] GET /api/v1/scoring/feedback/adjustments (per device, optional anomaly type filter)
+- [x] @PreAuthorize: TENANT_ADMIN, PROPERTY_MANAGER, ELECTRICIAN, OPERATOR
+
+#### Persistence — DONE
+- [x] JdbcScoringFeedbackRepository (full implementation, dynamic queries)
+- [x] Flyway V002: scoring_feedbacks + scoring_adjustments tables with indexes
+
+#### Metrics — DONE
+- [x] pyrosense.scoring.confirmed_defects_total
+- [x] pyrosense.scoring.false_positives_total
+- [x] pyrosense.scoring.inconclusive_feedback_total
+- [x] pyrosense.scoring.scoring_adjustments_total
+
+#### Configuration — DONE
+- [x] UseCaseConfig: ProcessFieldFeedbackService + GetFeedbackHistoryService beans
+
+#### Tests — DONE
+- [x] FeedbackConfidenceEngineTest (14 tests: boost, decay, max cumulative, bounds, reduction, no-defect, inconclusive, mode, properties)
+- [x] ProcessFieldFeedbackServiceTest (6 tests: save, adjustment computation, inconclusive no-adj, metrics, decay)
+
+#### Documentation — DONE
+- [x] docs/feedback-loop.md (architecture, events, rules, API, metrics, schema, labels ML, constraints)
+
+### Phase MVP 3.6: Lab Test Protocol — DONE
+
+#### Documentation — DONE
+- [x] docs/lab-test-protocol.md (protocole complet : 13 sections, 14 scenarios, criteres acceptation, securite, roles, recommandations)
+- [x] docs/lab-test-report-template.md (modele rapport : infos generales, resultats par scenario, mesures, anomalies, conclusion, approbation)
+- [x] docs/lab-defect-report-template.md (modele fiche anomalie : identification, classification, reproduction, preuves, analyse, resolution, historique)
+
+#### Scenarios de Test (14) — DONE
+- [x] SC-01 : Demarrage device (cold boot, sequence init, 1er heartbeat)
+- [x] SC-02 : Provisioning securise (claim token, single-use, rate limit)
+- [x] SC-03 : Heartbeat periodique (regularite, contenu, RSSI)
+- [x] SC-04 : Telemetrie normale (precision RMS ±5%, THD, temperature ±2°C)
+- [x] SC-05 : Perte WiFi (detection < 10s, transition offline)
+- [x] SC-06 : Reconnexion (< 30s, drain buffer, FIFO, pas de duplication)
+- [x] SC-07 : Buffer offline stress (1h+ sans perte, eviction FIFO, integrite)
+- [x] SC-08 : Donnees hors plage (saturation ADC, temp extremes, flags)
+- [x] SC-09 : Signal bruite (SNR 30→6 dB, signalQuality degrade, events)
+- [x] SC-10 : Temperature elevee simulee (seuils WARNING/HIGH, anomalie, retour)
+- [x] SC-11 : Micro-arc simule (bursts HF basse tension, arcEnergy, detection > 80%)
+- [x] SC-12 : Transitoires simules (impulsions carrees, transientCount, anomalie)
+- [x] SC-13 : Firmware version mismatch (forward compat, tracking, rejet ancien)
+- [x] SC-14 : Credential revoked (revocation effective, pas de boucle retry, re-provisioning)
+
+#### Criteres Non-Passage Terrain (10) — DONE
+- [x] NP-01 a NP-10 definis (crash, precision, buffer, provisioning, faux positifs, revocation, reconnexion, memory leak, watchdog, detection)
+
+#### Recommandations — DONE
+- [x] 10 recommandations firmware (watchdog HW, self-test, OTA, LZ4, degraded mode, etc.)
+- [x] 10 recommandations backend (alertes, dashboard health, commandes device, etc.)
+- [x] 5 recommandations integration (automatisation scenarios, CI firmware, E2E, signaux reference)
+
+### Phase MVP 3.7: Field Pilot Plan (10 Capteurs) — DONE
+
+#### Plan Pilote — DONE
+- [x] docs/field-pilot-10-devices.md (plan complet : 25 sections, objectifs, perimetre, selection sites/tableaux, procedures, KPIs, risques, criteres succes/arret)
+
+#### Sections couvertes (25) — DONE
+- [x] Objectifs du pilote (principal + secondaires + disclaimers)
+- [x] Perimetre (10 devices, 2-3 sites, 3-6 mois, fonctionnalites actives)
+- [x] Hors perimetre (ML avance, certification, notifications push, HA, OTA auto, SLA)
+- [x] Criteres selection sites (7 obligatoires, 6 souhaitables, 5 exclusions)
+- [x] Criteres selection tableaux electriques (7 techniques, circuits a prioriser)
+- [x] Pre-visite technique (10 points, livrable fiche site GO/NO-GO)
+- [x] Checklist installation (resume, reference vers doc detaillee)
+- [x] Checklist reseau (10 verifications, actions si NOK)
+- [x] Checklist securite (12 verifications, consignation, EPI, habilitation)
+- [x] Plan provisioning (workflow, registre devices, securite credentials)
+- [x] Plan collecte donnees (types, volumes, features, labellisation, RGPD)
+- [x] Plan monitoring quotidien (horaires, alertes auto, reference checklist)
+- [x] Plan support (4 niveaux L0-L3, canaux, escalade, astreinte)
+- [x] Procedure alerte WARNING (8 etapes, regles anti-fatigue alertes)
+- [x] Procedure alerte CRITICAL (11 etapes, template communication gestionnaire)
+- [x] Procedure capteur offline (paliers 3min→72h, causes probables, regles)
+- [x] Procedure faux positif (7 etapes, analyse, objectifs FP mensuel)
+- [x] Procedure retrait capteur (12 etapes, engagement retrait sans condition)
+- [x] KPIs (7 techniques, 5 detection, 5 operationnels, reporting)
+- [x] Duree recommandee (3 mois min, 6 mois recommande, phases)
+- [x] Risques (12 risques identifies avec probabilite/impact)
+- [x] Mitigations (12 mitigations associees)
+- [x] Criteres de succes (8 techniques, 5 operationnels, 3 business)
+- [x] Criteres d'arret (3 immediats securite, 6 programmes echec)
+- [x] Rapport final pilote (14 sections, diffusion, reference template)
+
+#### Documents Associes — DONE
+- [x] docs/field-installation-checklist.md (8 phases, etiquette capteur, PV signature)
+- [x] docs/pilot-daily-monitoring-checklist.md (7 sections, tableau 10 devices, metriques, bilan)
+- [x] docs/pilot-final-report-template.md (14 sections, KPIs, detection, dataset ML, decision GO/NO-GO)
+
+#### Securite et Conformite — DONE
+- [x] Installation exclusivement par electricien habilite (B2V min.)
+- [x] Consignation obligatoire (VAT, condamnation)
+- [x] Disclaimer obligatoire (pas de securite incendie certifiee)
+- [x] Retrait sans condition sur demande gestionnaire
+- [x] RGPD : pseudonymisation, droit de retrait, pas de transmission tiers
+- [x] Pas de promesse commerciale (pilote = experimentation controlee)
+
+### Phase MVP 3.8: Pilot Backend (pyrosense-dashboard-service) — DONE
+
+#### Domain Model — DONE
+- [x] PilotProgram aggregate (state machine: PREPARING → ACTIVE → PAUSED → COMPLETED/CANCELLED)
+- [x] PilotStatus enum (isTerminal, isRunning)
+- [x] PilotDevice record (status lifecycle: PLANNED → INSTALLED → ACTIVE → OFFLINE → REMOVED)
+- [x] PilotSite record (name, address, contact)
+- [x] PilotObservation record (5 types: FIELD_NOTE, INSTALLATION_REPORT, DAILY_MONITORING, FEEDBACK, GENERAL)
+- [x] PilotIncident record (4 severities, 8 categories, 4 statuses, report/resolve)
+- [x] PilotKpiSnapshot record (16 metrics, computed falsePositiveRate)
+
+#### Ports & Use Cases — DONE
+- [x] ManagePilotUseCase (9 methods, 4 command records)
+- [x] PilotRepositoryPort (15 methods: CRUD all 6 entities)
+- [x] ManagePilotService (tenant isolation, KPI computation from devices+incidents)
+
+#### REST API (8 endpoints) — DONE
+- [x] POST /api/v1/pilots (create)
+- [x] GET /api/v1/pilots (list by tenant)
+- [x] GET /api/v1/pilots/{id} (detail with devices)
+- [x] PATCH /api/v1/pilots/{id}/status (state transitions)
+- [x] POST /api/v1/pilots/{id}/devices (add device)
+- [x] POST /api/v1/pilots/{id}/observations (add observation)
+- [x] POST /api/v1/pilots/{id}/incidents (report incident)
+- [x] GET /api/v1/pilots/{id}/kpis (KPI history)
+- [x] POST /api/v1/pilots/{id}/reports (compute current KPIs)
+- [x] @PreAuthorize: TENANT_ADMIN, PROPERTY_MANAGER, PLATFORM_ADMIN
+
+#### Persistence — DONE
+- [x] JdbcPilotRepository (full JDBC, row mappers for all 6 entities)
+- [x] Flyway V002: 6 tables (pilot_programs, pilot_sites, pilot_devices, pilot_observations, pilot_incidents, pilot_kpi_snapshots)
+
+#### Configuration — DONE
+- [x] UseCaseConfig: ManagePilotService bean wired
+
+#### Tests — DONE
+- [x] PilotProgramTest (13 tests: state machine transitions, validation, device count)
+- [x] ManagePilotServiceTest (9 tests: create, get, tenant isolation, status, devices, incidents, KPIs)
+- [x] PilotControllerTest (8 tests: REST endpoints, responses, 401)
+- [x] PilotSecurityTest (9 tests: RBAC roles, 401/403 for unauthorized roles)
+
+#### Documentation — DONE
+- [x] docs/pilot-backend.md (architecture, domain, endpoints, security, schema, tests, rules)
+
+### Phase MVP 3.9: Device Technical Dashboard — DONE
+
+#### Backend (pyrosense-dashboard-service) — DONE
+- [x] DeviceTechnicalHealth record (16 champs: identification, metriques sante, quality, clock drift, sequence gaps)
+- [x] TelemetryQualityReport record (stats horaires, rejets, signal trend, offline periods)
+- [x] DeviceSecurityStatus record (credential status, version, auth failures, replay blocks — jamais de secrets)
+- [x] PilotDashboard record (vue consolidee: devices, incidents summary, KPI snapshot)
+- [x] DeviceTechnicalQuery port in (4 methodes query)
+- [x] DeviceTechnicalReadModelPort port out (4 methodes read model)
+- [x] GetDeviceTechnicalService (delegation + tenant isolation)
+- [x] DeviceTechnicalController (4 endpoints, @PreAuthorize PLATFORM_ADMIN/TENANT_ADMIN/PROPERTY_MANAGER/SUPPORT_READONLY)
+- [x] StubDeviceTechnicalReadModel (donnees simulees MVP)
+- [x] UseCaseConfig: GetDeviceTechnicalService bean wire
+
+#### Backend Tests — DONE
+- [x] DeviceTechnicalControllerTest (endpoints, responses, 401)
+- [x] DeviceTechnicalSecurityTest (RBAC: roles autorises, 403 electrician/occupant)
+
+#### Frontend (pyrosense-dashboard Angular) — DONE
+- [x] device-technical.model.ts (interfaces TypeScript)
+- [x] DeviceTechnicalApiService (HTTP client, 4 methodes)
+- [x] DeviceTechnicalOverviewComponent (cartes KPI, identification, seuils couleur)
+- [x] DeviceTelemetryQualityComponent (charts Chart.js, tables rejets/offline)
+- [x] DeviceSecurityComponent (credential badge, compteurs, banniere revoked)
+- [x] PilotMonitoringComponent (KPI cards, device table, incidents summary)
+- [x] Routes: devices/:id/technical, telemetry-quality, security + pilots/:id/monitoring
+- [x] roleGuard: PLATFORM_ADMIN, TENANT_ADMIN, PROPERTY_MANAGER, SUPPORT_READONLY
+
+#### Frontend Tests — DONE
+- [x] device-technical-api.service.spec.ts (appels HTTP)
+- [x] device-technical-overview.component.spec.ts (creation, loading, affichage)
+- [x] pilot-monitoring.component.spec.ts (creation, rendu)
+
+#### Documentation — DONE
+- [x] docs/device-technical-dashboard.md (architecture, endpoints, ecrans, securite, modeles, seuils, limitations)
+
+### Phase MVP 3.10: Observability Real Device — DONE
+
+#### Metrics (14) — DONE
+- [x] Mvp3ObservabilityConfig: Counters (6): real_device_telemetry_received, signature_invalid, replay_detected, low_signal_quality, clock_drift, offline_queue_flush
+- [x] Mvp3ObservabilityConfig: Gauges (7): device_offline_duration_seconds, signal_quality_score, data_quality_score, firmware_version_count, pilot_active_devices, pilot_data_quality_average, pilot_incidents_total
+- [x] Mvp3ObservabilityConfig: Timer (1): validation_duration_seconds (P50, P95, P99)
+- [x] TracingConfig: ObservedAspect for @Observed annotation support
+
+#### Prometheus Alerts (10 rules, group pyrosense-mvp3) — DONE
+- [x] Mvp3SignatureInvalidSpike (critical): rate > 0.5/s for 2m
+- [x] Mvp3ReplayAttackDetected (critical): increase > 3 in 5m
+- [x] Mvp3DeviceOfflineLong (warning): offline > 1h for 5m
+- [x] Mvp3LowSignalQualityHigh (warning): rate > 0.3/s for 5m
+- [x] Mvp3ClockDriftFrequent (warning): rate > 0.2/s for 10m
+- [x] Mvp3NoRealDeviceData (critical): rate = 0 for 15m
+- [x] Mvp3ValidationLatencyHigh (warning): P95 > 500ms for 3m
+- [x] Mvp3DataQualityLow (warning): score < 60 for 10m
+- [x] Mvp3PilotDevicesInactive (warning): active < 5 for 10m
+- [x] Mvp3FirmwareVersionDrift (warning): versions > 3 for 30m
+
+#### Structured Logging — DONE
+- [x] Logback MDC fields: traceId, spanId, correlationId, tenantId, deviceId, firmwareVersion, schemaVersion, rejectionReason
+- [x] No payload content in logs (security constraint)
+- [x] No device secrets in logs (security constraint)
+- [x] JSON structured output in docker/prod profiles (LogstashEncoder)
+
+#### Distributed Tracing — DONE
+- [x] OTLP HTTP export (localhost:4318/v1/traces)
+- [x] W3C traceparent propagation (HTTP + Kafka)
+- [x] Configurable sampling probability (TRACING_SAMPLING env var)
+- [x] ObservedAspect for method-level span creation
+
+#### Grafana Dashboards (4) — DONE
+- [x] mvp3-device-fleet-health.json (telemetry rate, signal/data quality gauges, offline, firmware)
+- [x] mvp3-pilot-monitoring.json (active devices, quality averages, incidents, security timeline)
+- [x] mvp3-ingestion-security.json (signatures, replay, validation latency, rejection breakdown)
+- [x] mvp3-data-quality.json (quality scores, rejections, offline events, drift)
+
+#### Tests — DONE
+- [x] Mvp3ObservabilityConfigTest (13 tests: registration, increment, gauges, timer, labels, no secrets)
+
+#### Documentation — DONE
+- [x] docs/mvp3-observability.md (metrics table, alerts, logging, tracing flow, dashboards, runbook)
+
+### Phase MVP 3.11: IoT Security Hardening — DONE
+
+#### Threat Model STRIDE — DONE
+- [x] 13 menaces identifiees (Spoofing, Tampering, Repudiation, Info Disclosure, DoS, Elevation)
+- [x] Matrice des risques (Impact × Likelihood → Risk Level)
+- [x] Classement: 1 CRITICAL (#6 tenant spoofing), 8 HIGH, 4 MEDIUM
+
+#### Security Controls Implementation — DONE
+- [x] DeviceRateLimiter: per-device sliding window (configurable max-messages/window-seconds)
+- [x] IoTSecurityAuditor: structured audit logging for 12 security event types
+- [x] ProtocolValidationPipeline enhanced: rate limiting (step 0) + audit events on all rejections
+- [x] ProtocolValidationConfig: wires DeviceRateLimiter + IoTSecurityAuditor beans
+- [x] Configuration: pyrosense.security.device-rate-limit.max-messages (default 120)
+- [x] Configuration: pyrosense.security.device-rate-limit.window-seconds (default 60)
+
+#### Existing Controls Documented — DONE
+- [x] HMAC-SHA256 per-device signature (SignatureVerifier, constant-time comparison)
+- [x] Anti-replay 3 layers: nonce uniqueness, messageId idempotency, sequence monotonicity
+- [x] Timestamp tolerance: ±300s normal, 72h drain mode
+- [x] Device status check: ACTIVE/REVOKED/NOT_FOUND before signature verification
+- [x] Topic-payload coherence: topicDeviceId == payload.deviceId, topicTenantId == payload.tenantId
+- [x] Payload size limit: 8KB MQTT + PayloadSizeLimitFilter HTTP
+- [x] Schema validation: version whitelist, feature range checks, nonce length, required fields
+- [x] Provisioning: claim token single-use, 24h TTL, rate limited (10 failures/IP/15min)
+- [x] Credential lifecycle: issue, rotate, revoke — hash-stored, never re-displayed
+- [x] DLQ: failed messages routed to ingestion-dlq Kafka topic
+
+#### IoT Security Tests (IoTSecurityTest.java — 24 tests) — DONE
+- [x] Threat #1: Unknown device rejected, wrong tenant rejected
+- [x] Threat #3: Nonce reuse rejected, duplicate messageId rejected, sequence regression rejected
+- [x] Threat #4: Invalid HMAC rejected, missing signature rejected
+- [x] Threat #5: Revoked device rejected immediately
+- [x] Threat #6: Topic tenant mismatch rejected, topic device mismatch rejected
+- [x] Threat #8: Firmware version tracked on successful validation
+- [x] Threat #9: Future timestamp rejected, old timestamp rejected, drain mode accepted
+- [x] Threat #11: Invalid schema version rejected, out-of-range values rejected, bad nonce rejected
+- [x] Threat #12: Rate limit enforced, independent limits per device
+- [x] Threat #10: Audit sanitizes secrets in detail messages
+- [x] Signature: valid passes, tampered fails, null key disables, constant-time comparison
+
+#### DeviceRateLimiterTest (6 tests) — DONE
+- [x] First message allowed, within limit allowed, exceeding limit rejected
+- [x] Independent devices, reset clears window, zero-limit rejects all
+
+#### Documentation — DONE
+- [x] docs/iot-security.md (STRIDE model, risk matrix, 13 controls, mTLS migration path, pre-pilot checklist)
+
+#### Pre-Pilot Security Checklist — DONE
+- [x] Device commissioning checklist (5 items)
+- [x] Cloud infrastructure checklist (6 items)
+- [x] Credential management checklist (5 items)
+- [x] Monitoring & audit checklist (4 items)
+- [x] Network security checklist (4 items)
+- [x] Incident response procedures (4 scenarios)
+
+#### Migration Future (mTLS) — Documented
+- [x] Phase 1 (current): HMAC-SHA256
+- [x] Phase 2: Dual validation HMAC + X.509
+- [x] Phase 3: ATECC608B secure element (key non-extractable)
+- [x] Phase 4: Pure mTLS with broker ACL
+
+### Phase MVP 3.12: CI/CD Pipeline Complet — DONE
+
+#### GitHub Actions Workflow (.github/workflows/mvp3-ci.yml) — DONE
+- [x] Trigger: push main/develop/release/firmware, PR, workflow_dispatch
+- [x] Concurrency: cancel-in-progress par branche
+- [x] 7 jobs séparés avec dépendances
+
+#### Job 1: backend-build-test — DONE
+- [x] Compile (Maven, Java 21)
+- [x] Unit tests (~500+ tests, 12 modules)
+- [x] ArchUnit tests (règles hexagonales)
+- [x] Integration tests (JDBC, Kafka embedded)
+- [x] JaCoCo coverage (seuil 60% warning)
+- [x] Artifacts: test reports + coverage reports
+
+#### Job 2: frontend-build-test — DONE
+- [x] Conditional: skip si pyrosense-dashboard/ non modifié (sauf main)
+- [x] npm ci (dépendances lockfile exactes)
+- [x] ESLint (ng lint)
+- [x] Karma/Jasmine tests (ChromeHeadless)
+- [x] Production build (AOT, tree-shaking)
+- [x] Artifact: frontend-coverage
+
+#### Job 3: firmware-build — DONE
+- [x] Install cmake + g++ + cppcheck
+- [x] Build host tests (CMake, C++17, -DPYRO_HOST_BUILD)
+- [x] CTest execution (7 suites, 43 tests)
+- [x] cppcheck static analysis (fail on error)
+- [x] Firmware version generation (0.3.YYYYMMDD.sha7)
+- [x] Artifacts: firmware-test-results, firmware-{version}
+
+#### Job 4: security-scan — DONE
+- [x] OWASP Dependency Check (fail on CVSS >= 8)
+- [x] Hardcoded secrets grep scan
+- [x] Artifact: owasp-report
+
+#### Job 5: docker-build — DONE
+- [x] Trigger: main ou release/* uniquement
+- [x] Build JARs (skip tests)
+- [x] Docker Buildx
+- [x] Push to registry (credentials via secrets)
+- [x] Version tag: 0.3.0-YYYYMMDD-sha7
+
+#### Job 6: release-notes — DONE
+- [x] Trigger: release/* branches
+- [x] Changelog automatique (git log)
+- [x] Matrice versions (backend, frontend, firmware, schema)
+- [x] Statut sécurité
+- [x] Checklist pré-pilote
+
+#### Job 7: deploy-pilot — DONE
+- [x] Trigger: workflow_dispatch UNIQUEMENT (jamais automatique)
+- [x] GitHub Environment 'pilot' avec reviewers requis (manual approval)
+- [x] Vérification checklist
+- [x] Deploy backend + health check
+- [x] Notification succès
+
+#### Versioning — DONE
+- [x] Backend: Maven 0.3.0-SNAPSHOT → Docker tag 0.3.0-YYYYMMDD-sha7
+- [x] Firmware: 0.3.YYYYMMDD.sha7 (build) / 0.3.x (release)
+- [x] Payload schema: v1.0 (MqttProtocolConstants.SUPPORTED_SCHEMA_VERSIONS)
+
+#### Sécurité CI — DONE
+- [x] Aucun secret dans code (grep enforced)
+- [x] Secrets uniquement via GitHub Secrets (encrypted at rest)
+- [x] OWASP fail CVSS >= 8
+- [x] Pas de déploiement auto sur pilote
+- [x] Manual approval obligatoire (Environment protection rules)
+
+#### Checklist Release Firmware — DONE
+- [x] Pré-release (6 items: tests, cppcheck, compile, version, changelog, schema)
+- [x] Validation (6 items: hardware 24h, watchdog, memory, MQTT, offline, signal)
+- [x] Déploiement (7 items: artifact signé, canary, progressif, rollback)
+- [x] Post-déploiement (4 items: métriques, alertes, signatures, rejections)
+
+#### Documentation — DONE
+- [x] docs/ci-cd-mvp3.md (architecture pipeline, jobs, versioning, secrets, checklist firmware, environnements)
+
+### Phase MVP 3.14: Audit Complet MVP 3 — DONE
+
+#### Corrections Appliquees — DONE
+- [x] SignatureVerifier.java: constantTimeEquals ne fuit plus la longueur (timing attack fix)
+- [x] PayloadValidator.java: non-drain messages utilisent MAX_REALTIME_TIMESTAMP_AGE_SECONDS (600s, pas 300s)
+- [x] MqttProtocolConstants.java: ajout MAX_REALTIME_TIMESTAMP_AGE_SECONDS = 600
+- [x] DeviceRateLimiter.java: synchronized sur window reset (race condition fix)
+- [x] ProtocolValidationPipeline.java: SIGNATURE_DISABLED rejeté (pas bypass) pour telemetry + events
+- [x] app_main.cpp: WiFi credentials chargés depuis WifiConfig (plus hardcodés)
+- [x] device_config.h: ajout struct WifiConfig
+- [x] device_config.cpp: WiFi defaults vides (doit être provisionné)
+
+#### Documents Créés — DONE
+- [x] docs/audit-mvp3.md (audit complet 20 domaines, 35 findings, 9 corrections appliquées)
+- [x] docs/mvp3-risk-register.md (registre risques: 8 CRITICAL, 9 HIGH, 12 MEDIUM, 6 LOW)
+- [x] docs/mvp3-pilot-readiness-checklist.md (9 categories, GO/NO-GO, blocking items, sign-off)
+
+#### Findings par Sévérité — DONE
+- [x] 8 CRITICAL identifiés (5 corrigés, 3 ouverts: heartbeat bypass, tenant isolation x2)
+- [x] 9 HIGH identifiés (3 corrigés, 6 ouverts: legacy handler, provisioning, CI)
+- [x] 12 MEDIUM identifiés (acceptés ou recommandés pour sprint suivant)
+- [x] 6 LOW identifiés (acceptés pour le pilote)
+
+#### Corrections Bloquantes Appliquées — DONE
+- [x] Keycloak realm configuré (realm-export.json + init-keycloak.sh + docker-compose import)
+- [x] Firmware HMAC réel mbedtls (ESP32) + SHA-256 self-contained (host tests)
+- [x] Heartbeat security bypass corrigé (rate limiting + revocation check)
+- [x] Legacy handler désactivable en production (pyrosense.mqtt.legacy-handler.enabled=false)
+- [x] Tenant isolation DataQuality corrigée (findLatestByDeviceAndTenant, findHistoryByDeviceAndTenant)
+- [x] DeviceQualityController /summary restreint @PreAuthorize PLATFORM_ADMIN
+
+#### Verdict Pilote — CONDITIONAL GO (2 items hardware restants)
+- [x] Keycloak realm configuré — DONE
+- [x] Firmware HMAC réel mbedtls — DONE
+- [ ] Hardware 24h stabilité (bloquant pour terrain, nécessite ESP32-S3 DevKit)
+- [ ] Electricien B2V+ identifié (bloquant opérationnel)
+
+### Phase MVP 3.13: Documentation Finale & Production Readiness — DONE
+
+#### Documents Crees — DONE
+- [x] docs/mvp3-overview.md (objectifs, perimetre, prerequis MVP 1/2, architecture edge-cloud, phases, chiffres cles)
+- [x] docs/mvp3-production-readiness-checklist.md (88 items, 10 categories, 77 Done / 4 Partial / 7 Not Started, GO/NO-GO)
+
+#### Documents Existants Couvrant le Scope — DEJA FAIT
+- [x] docs/edge-cloud-architecture.md (architecture detaillee)
+- [x] docs/hardware-prototype-strategy.md (3 options, BOM, risques)
+- [x] docs/firmware-architecture.md (ESP32-S3, modules, state machine)
+- [x] docs/mqtt-protocol-v1.md (specification complete)
+- [x] docs/device-provisioning.md (workflow, securite)
+- [x] docs/real-device-ingestion.md (pipeline, rejections, metriques)
+- [x] docs/data-quality.md (scoring, grades, regles)
+- [x] docs/field-data-collection.md (dataset, pseudonymisation)
+- [x] docs/lab-test-protocol.md (14 scenarios, criteres)
+- [x] docs/field-pilot-10-devices.md (plan pilote complet)
+- [x] docs/iot-security.md (STRIDE, 13 controles, mTLS migration)
+- [x] docs/mvp3-observability.md (metriques, alertes, tracing)
+- [x] docs/ci-cd-mvp3.md (pipeline 7 jobs, versioning, checklist)
+
+#### README.md — DONE
+- [x] Section MVP 3 ajoutee (demarrage rapide, provisioning, telemetrie, limites securite)
+- [x] Table documentation MVP 3 & Pilot (17 documents references)
+- [x] Avertissement installation par electricien habilite
+- [x] Monitoring pilote (Grafana dashboards, Prometheus alerts)
+
+#### TODO.md — DONE
+- [x] Phases 3.10-3.13 marquees DONE
+- [x] Risques residuels MVP 3 listes
+- [x] Proposition MVP 4 ajoutee
 
 ### Documentation MVP 3
 
 - [x] docs/mvp3-transition.md (plan complet : 15 sections, roadmap 6 sprints, risques, protocoles, feedback loop, budget)
+
+---
+
+## MVP 4 — Machine Learning & MLOps (PLANIFIE)
+
+> **Document de reference** : docs/mvp4-ml-transition.md
+
+### Phase 4.0 — Fondations ML (Mois 1-2)
+- [ ] Feature store offline (vues SQL materialisees + export Parquet)
+- [ ] Feature store online (Redis, lookup per device <10ms)
+- [ ] MLflow deploye (Docker Compose, model registry)
+- [ ] Pipeline evaluation offline (notebook → script automatise)
+- [ ] Mesurer baseline statistique sur donnees pilote (metriques de reference)
+- [ ] Interface labelling enrichie (technicien peut labeller en 3 clics)
+
+### Phase 4.1 — Premier Modele (Mois 2-3)
+- [ ] Entrainement Isolation Forest (scikit-learn, precision ≥0.80)
+- [ ] Export ONNX + service inference (container, latence <50ms P99)
+- [ ] Adapter MachineLearningInferencePort (remplacer NoOp)
+- [ ] Shadow mode comparison engine (dashboard metriques)
+- [ ] 4 semaines shadow mode (metriques ≥ stat sur 50+ events)
+
+### Phase 4.2 — Scoring Ameliore (Mois 3-4)
+- [ ] Poids adaptatifs par site (feedback terrain → recalibrage)
+- [ ] Adapter RiskModelPort (score ensemble stat+ML)
+- [ ] Canary deployment (10% fleet, ensemble 0.7 stat + 0.3 ML)
+- [ ] SHAP explanations pour predictions ML
+- [ ] Dashboard operateur enrichi (stat + ML side by side)
+
+### Phase 4.3 — Modeles Avances (Mois 4-6)
+- [ ] Autoencoder (Keras/PyTorch → ONNX, reconstruction error)
+- [ ] Shadow mode autoencoder vs Isolation Forest
+- [ ] LSTM/TCN si ≥200 sequences labellisees (lead time prediction)
+- [ ] Survival analysis (Cox PH) si ≥100 events (maintenance predictive)
+- [ ] Model ensemble (vote majoritaire ou stacking)
+
+### Phase 4.4 — Production ML (Mois 5-6)
+- [ ] Production deployment (ensemble stat+ML, 100% fleet)
+- [ ] Monitoring drift (PSI, KS test, accuracy sliding window)
+- [ ] Re-entrainement automatise (Airflow/Prefect, hebdomadaire)
+- [ ] Circuit breaker + rollback automatique (<1s)
+- [ ] Gouvernance formalisee (comite, registre decisions)
+- [ ] Documentation scientifique du pipeline ML
+
+### Contraintes MVP 4
+- Scoring statistique reste actif comme filet de securite (JAMAIS retire)
+- Shadow mode obligatoire avant tout deploiement utilisateur
+- Humain dans la boucle pour alertes CRITICAL
+- Confirmations terrain = labels de qualite (gold standard)
+- Explicabilite sur chaque prediction (SHAP/feature importance)
+- Pas de donnees electriques brutes au cloud
+- Pseudonymisation pour tout entrainement
+- Circuit breaker : fallback stat si ML unavailable >30s

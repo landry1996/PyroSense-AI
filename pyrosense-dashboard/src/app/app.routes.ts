@@ -91,6 +91,34 @@ export const routes: Routes = [
       import('./features/admin/admin.component').then(m => m.AdminComponent),
   },
   {
+    path: 'devices/:id/technical',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY'] },
+    loadComponent: () =>
+      import('./features/device-technical/device-technical-overview.component').then(m => m.DeviceTechnicalOverviewComponent),
+  },
+  {
+    path: 'devices/:id/telemetry-quality',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY'] },
+    loadComponent: () =>
+      import('./features/device-technical/device-telemetry-quality.component').then(m => m.DeviceTelemetryQualityComponent),
+  },
+  {
+    path: 'devices/:id/security',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY'] },
+    loadComponent: () =>
+      import('./features/device-technical/device-security.component').then(m => m.DeviceSecurityComponent),
+  },
+  {
+    path: 'pilots/:id/monitoring',
+    canActivate: [authGuard, roleGuard],
+    data: { roles: ['PLATFORM_ADMIN', 'TENANT_ADMIN', 'PROPERTY_MANAGER', 'SUPPORT_READONLY'] },
+    loadComponent: () =>
+      import('./features/device-technical/pilot-monitoring.component').then(m => m.PilotMonitoringComponent),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

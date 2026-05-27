@@ -1,0 +1,25 @@
+# Build
+build/
+sdkconfig
+sdkconfig.old
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets - NEVER commit
+secrets/
+*.pem
+*.key
+*.crt
+config.h
+
+# ESP-IDF
+managed_components/
+dependencies.lock
+
+# OS
+.DS_Store
+Thumbs.db
