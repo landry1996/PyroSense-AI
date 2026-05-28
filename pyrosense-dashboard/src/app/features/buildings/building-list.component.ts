@@ -23,12 +23,12 @@ import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component
     RiskGaugeComponent,
   ],
   template: `
-    <div class="buildings-container">
+    <div class="buildings-container" role="main" aria-labelledby="buildings-title">
       <div class="header-row">
-        <h1>Batiments</h1>
+        <h1 id="buildings-title">Batiments</h1>
         <mat-form-field appearance="outline" class="search-field">
           <mat-icon matPrefix>search</mat-icon>
-          <input matInput placeholder="Rechercher..." [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)">
+          <input matInput placeholder="Rechercher..." aria-label="Rechercher un batiment" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)">
         </mat-form-field>
       </div>
 
@@ -58,7 +58,8 @@ import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component
       } @else {
         <div class="building-grid">
           @for (building of filteredBuildings(); track building.id) {
-            <mat-card class="building-card" [routerLink]="['/buildings', building.id]">
+            <mat-card class="building-card" [routerLink]="['/buildings', building.id]"
+                      [attr.aria-label]="building.name + ' - ' + getStatusLabel(building.status)">
               <mat-card-header>
                 <mat-icon mat-card-avatar class="building-avatar">apartment</mat-icon>
                 <mat-card-title>{{ building.name }}</mat-card-title>
@@ -130,6 +131,9 @@ import { RiskGaugeComponent } from '../../shared/components/risk-gauge.component
     .empty-state mat-icon { font-size: 48px; width: 48px; height: 48px; color: #bbb; }
     .empty-state p { color: #666; margin-top: 8px; }
 
+    @media (max-width: 960px) {
+      .building-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    }
     @media (max-width: 600px) {
       .building-grid { grid-template-columns: 1fr; }
       .header-row { flex-direction: column; align-items: stretch; }

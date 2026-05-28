@@ -6,9 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil } from 'rxjs';
 import { ApiService, InterventionResponse, KanbanResponse, InterventionStatistics } from '../../core/services/api.service';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
 @Component({
   selector: 'app-intervention-list',
@@ -16,39 +17,52 @@ import { ApiService, InterventionResponse, KanbanResponse, InterventionStatistic
   imports: [
     CommonModule, RouterModule,
     MatCardModule, MatButtonModule, MatIconModule,
-    MatChipsModule, MatTabsModule, MatProgressSpinnerModule,
+    MatChipsModule, MatTabsModule,
+    SkeletonLoaderComponent, EmptyStateComponent,
   ],
   template: `
-    <div class="interventions-container">
-      <h1>Interventions</h1>
+    <div class="interventions-container" role="main" aria-labelledby="interventions-title">
+      <h1 id="interventions-title">Interventions</h1>
 
+      @if (loading()) {
+        <div class="stats-row" aria-label="Chargement des statistiques">
+          @for (i of [1,2,3,4,5]; track i) {
+            <mat-card class="stat-card"><mat-card-content><app-skeleton type="stat" /></mat-card-content></mat-card>
+          }
+        </div>
+        <div class="kanban-skeleton" aria-label="Chargement du tableau kanban">
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="skeleton-col"><app-skeleton type="card" [count]="3" /></div>
+          }
+        </div>
+      } @else {
       @if (statistics()) {
-        <div class="stats-row">
-          <mat-card class="stat-card">
+        <div class="stats-row" role="region" aria-label="Statistiques des interventions">
+          <mat-card class="stat-card" [attr.aria-label]="'Total: ' + statistics()!.total">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.total }}</div>
               <div class="stat-label">Total</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card active">
+          <mat-card class="stat-card active" [attr.aria-label]="'En cours: ' + statistics()!.inProgress">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.inProgress }}</div>
               <div class="stat-label">En cours</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card done">
+          <mat-card class="stat-card done" [attr.aria-label]="'Terminees: ' + statistics()!.completed">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.completed }}</div>
               <div class="stat-label">Terminees</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card fp">
+          <mat-card class="stat-card fp" [attr.aria-label]="'Faux positifs: ' + statistics()!.falsePositives">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.falsePositives }}</div>
               <div class="stat-label">Faux positifs</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card risk">
+          <mat-card class="stat-card risk" [attr.aria-label]="'Reduction risque moyenne: ' + statistics()!.averageRiskReduction + '%'">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.averageRiskReduction }}%</div>
               <div class="stat-label">Reduction risque moy.</div>
@@ -57,65 +71,67 @@ import { ApiService, InterventionResponse, KanbanResponse, InterventionStatistic
         </div>
       }
 
-      @if (loading()) {
-        <mat-spinner diameter="40"></mat-spinner>
-      } @else if (kanban()) {
-        <div class="kanban-board">
-          <div class="kanban-column">
+      @if (kanban()) {
+        <div class="kanban-board" role="region" aria-label="Tableau kanban des interventions">
+          <div class="kanban-column" role="list" aria-label="Creees">
             <div class="column-header created">
               <span>Creees</span>
-              <span class="count">{{ kanban()!.created.length }}</span>
+              <span class="count" aria-hidden="true">{{ kanban()!.created.length }}</span>
             </div>
             @for (item of kanban()!.created; track item.id) {
               <ng-container *ngTemplateOutlet="cardTpl; context: { $implicit: item }"></ng-container>
             }
           </div>
 
-          <div class="kanban-column">
+          <div class="kanban-column" role="list" aria-label="Planifiees">
             <div class="column-header planned">
               <span>Planifiees</span>
-              <span class="count">{{ kanban()!.planned.length }}</span>
+              <span class="count" aria-hidden="true">{{ kanban()!.planned.length }}</span>
             </div>
             @for (item of kanban()!.planned; track item.id) {
               <ng-container *ngTemplateOutlet="cardTpl; context: { $implicit: item }"></ng-container>
             }
           </div>
 
-          <div class="kanban-column">
+          <div class="kanban-column" role="list" aria-label="Assignees">
             <div class="column-header assigned">
               <span>Assignees</span>
-              <span class="count">{{ kanban()!.assigned.length }}</span>
+              <span class="count" aria-hidden="true">{{ kanban()!.assigned.length }}</span>
             </div>
             @for (item of kanban()!.assigned; track item.id) {
               <ng-container *ngTemplateOutlet="cardTpl; context: { $implicit: item }"></ng-container>
             }
           </div>
 
-          <div class="kanban-column">
+          <div class="kanban-column" role="list" aria-label="En cours">
             <div class="column-header in-progress">
               <span>En cours</span>
-              <span class="count">{{ kanban()!.inProgress.length }}</span>
+              <span class="count" aria-hidden="true">{{ kanban()!.inProgress.length }}</span>
             </div>
             @for (item of kanban()!.inProgress; track item.id) {
               <ng-container *ngTemplateOutlet="cardTpl; context: { $implicit: item }"></ng-container>
             }
           </div>
 
-          <div class="kanban-column">
+          <div class="kanban-column" role="list" aria-label="Terminees">
             <div class="column-header completed">
               <span>Terminees</span>
-              <span class="count">{{ kanban()!.completed.length }}</span>
+              <span class="count" aria-hidden="true">{{ kanban()!.completed.length }}</span>
             </div>
             @for (item of kanban()!.completed; track item.id) {
               <ng-container *ngTemplateOutlet="cardTpl; context: { $implicit: item }"></ng-container>
             }
           </div>
         </div>
+      } @else {
+        <app-empty-state icon="engineering" title="Aucune intervention" message="Les interventions apparaitront ici une fois creees depuis les alertes." />
+      }
       }
     </div>
 
     <ng-template #cardTpl let-item>
-      <mat-card class="intervention-card" [routerLink]="['/interventions', item.id]">
+      <mat-card class="intervention-card" role="listitem" [routerLink]="['/interventions', item.id]"
+                [attr.aria-label]="getPriorityLabel(item.priority) + ' - ' + item.description">
         <mat-card-content>
           <div class="card-header">
             <span class="priority-badge" [class]="'priority-' + item.priority.toLowerCase()">
@@ -190,6 +206,22 @@ import { ApiService, InterventionResponse, KanbanResponse, InterventionStatistic
     .priority-medium { background: #e3f2fd; color: #1565c0; }
     .priority-low { background: #f5f5f5; color: #616161; }
     .type-label { font-size: 10px; color: #888; text-transform: uppercase; }
+
+    .kanban-skeleton { display: flex; gap: 16px; }
+    .skeleton-col { flex: 1; min-width: 200px; background: #f5f5f5; border-radius: 8px; padding: 12px; }
+
+    @media (max-width: 960px) {
+      .kanban-board { flex-direction: column; }
+      .kanban-column { min-width: unset; }
+      .stats-row { gap: 8px; }
+      .stat-card { min-width: 120px; }
+      .kanban-skeleton { flex-direction: column; }
+    }
+    @media (max-width: 600px) {
+      .stats-row { flex-direction: column; }
+      .stat-card { min-width: unset; }
+      .stat-value { font-size: 22px; }
+    }
   `],
 })
 export class InterventionListComponent implements OnInit, OnDestroy {

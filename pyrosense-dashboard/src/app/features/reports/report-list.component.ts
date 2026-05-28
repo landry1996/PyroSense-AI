@@ -16,6 +16,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { Subject, takeUntil } from 'rxjs';
 import { ApiService, ReportResponse, BuildingResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
 @Component({
   selector: 'app-report-list',
@@ -26,10 +28,11 @@ import { AuthService } from '../../core/services/auth.service';
     MatSelectModule, MatFormFieldModule, MatInputModule,
     MatDatepickerModule, MatNativeDateModule,
     MatCardModule, MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule,
+    SkeletonLoaderComponent, EmptyStateComponent,
   ],
   template: `
-    <div class="reports-container">
-      <h1>Rapports</h1>
+    <div class="reports-container" role="main" aria-labelledby="reports-title">
+      <h1 id="reports-title">Rapports</h1>
 
       <div class="actions-row">
         <div class="filters-row">
@@ -46,7 +49,7 @@ import { AuthService } from '../../core/services/auth.service';
             </mat-select>
           </mat-form-field>
         </div>
-        <button mat-raised-button color="primary" (click)="showGenerateForm = !showGenerateForm">
+        <button mat-raised-button color="primary" (click)="showGenerateForm = !showGenerateForm" aria-label="Generer un nouveau rapport">
           <mat-icon>add</mat-icon> Generer un rapport
         </button>
       </div>
@@ -107,7 +110,7 @@ import { AuthService } from '../../core/services/auth.service';
       }
 
       @if (loading()) {
-        <mat-spinner diameter="40"></mat-spinner>
+        <app-skeleton type="table" [count]="6" [columns]="6" />
       } @else {
         <table mat-table [dataSource]="reports()" class="reports-table">
           <ng-container matColumnDef="reportNumber">
@@ -147,7 +150,7 @@ import { AuthService } from '../../core/services/auth.service';
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let report">
               @if (report.status === 'GENERATED') {
-                <button mat-icon-button color="primary" (click)="downloadReport(report)">
+                <button mat-icon-button color="primary" (click)="downloadReport(report)" [attr.aria-label]="'Telecharger rapport ' + report.reportNumber">
                   <mat-icon>download</mat-icon>
                 </button>
               }
@@ -165,12 +168,7 @@ import { AuthService } from '../../core/services/auth.service';
         </table>
 
         @if (reports().length === 0) {
-          <mat-card class="empty-card">
-            <mat-card-content>
-              <mat-icon>description</mat-icon>
-              <p>Aucun rapport disponible</p>
-            </mat-card-content>
-          </mat-card>
+          <app-empty-state icon="description" title="Aucun rapport disponible" message="Generez un rapport pour commencer le suivi de votre parc." />
         }
       }
     </div>
@@ -194,6 +192,16 @@ import { AuthService } from '../../core/services/auth.service';
     .form-row { display: flex; gap: 12px; flex-wrap: wrap; padding: 16px 0; }
     .form-row mat-form-field { flex: 1; min-width: 180px; }
     .inline-spinner { display: inline-block; }
+
+    @media (max-width: 960px) {
+      .actions-row { flex-direction: column; gap: 12px; }
+      .form-row { flex-direction: column; }
+      .form-row mat-form-field { min-width: unset; }
+    }
+    @media (max-width: 600px) {
+      .reports-table { font-size: 12px; }
+      .actions-row { align-items: stretch; }
+    }
   `],
 })
 export class ReportListComponent implements OnInit, OnDestroy {

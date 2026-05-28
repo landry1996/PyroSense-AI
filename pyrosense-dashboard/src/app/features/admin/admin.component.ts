@@ -8,12 +8,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { Subject, takeUntil } from 'rxjs';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
 interface UserResponse {
   id: string;
@@ -42,18 +43,19 @@ interface AuditLogEntry {
     CommonModule, FormsModule,
     MatTabsModule, MatTableModule, MatButtonModule, MatIconModule,
     MatCardModule, MatFormFieldModule, MatInputModule,
-    MatProgressSpinnerModule, MatSnackBarModule, MatChipsModule,
+    MatSnackBarModule, MatChipsModule,
+    SkeletonLoaderComponent, EmptyStateComponent,
   ],
   template: `
-    <div class="admin-container">
-      <h1>Administration</h1>
+    <div class="admin-container" role="main" aria-labelledby="admin-title">
+      <h1 id="admin-title">Administration</h1>
 
       <mat-tab-group>
         <!-- Users Tab -->
         <mat-tab label="Utilisateurs">
           <div class="tab-content">
             @if (usersLoading()) {
-              <mat-spinner diameter="40"></mat-spinner>
+              <app-skeleton type="table" [count]="5" [columns]="5" />
             } @else {
               <table mat-table [dataSource]="users()" class="users-table">
                 <ng-container matColumnDef="fullName">
@@ -92,7 +94,7 @@ interface AuditLogEntry {
               </table>
 
               @if (users().length === 0) {
-                <p class="empty">Aucun utilisateur dans ce tenant</p>
+                <app-empty-state icon="people" title="Aucun utilisateur" message="Aucun utilisateur dans ce tenant." />
               }
             }
           </div>
@@ -102,7 +104,7 @@ interface AuditLogEntry {
         <mat-tab label="Journal d'audit">
           <div class="tab-content">
             @if (auditLoading()) {
-              <mat-spinner diameter="40"></mat-spinner>
+              <app-skeleton type="table" [count]="8" [columns]="6" />
             } @else {
               <table mat-table [dataSource]="auditEntries()" class="audit-table">
                 <ng-container matColumnDef="timestamp">
@@ -142,7 +144,7 @@ interface AuditLogEntry {
               </table>
 
               @if (auditEntries().length === 0) {
-                <p class="empty">Aucune entree d'audit sur les 30 derniers jours</p>
+                <app-empty-state icon="history" title="Aucune entree d'audit" message="Les actions des 30 derniers jours apparaitront ici." />
               }
             }
           </div>
@@ -159,7 +161,14 @@ interface AuditLogEntry {
     .status-locked { background: #ffcdd2; color: #b71c1c; }
     .status-suspended { background: #fff3e0; color: #e65100; }
     .action-badge { font-family: monospace; font-size: 12px; padding: 2px 6px; background: #e3f2fd; border-radius: 3px; }
-    .empty { color: #666; font-style: italic; text-align: center; padding: 32px; }
+
+    @media (max-width: 960px) {
+      .users-table, .audit-table { font-size: 13px; }
+    }
+    @media (max-width: 600px) {
+      .tab-content { padding: 16px 0; }
+      .users-table, .audit-table { font-size: 12px; }
+    }
   `],
 })
 export class AdminComponent implements OnInit, OnDestroy {

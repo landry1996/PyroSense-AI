@@ -174,6 +174,10 @@ Chart.register(...registerables);
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .bottom-row { grid-template-columns: 1fr; }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .stat-card.pulse .stat-value { animation: none; }
+      .stat-card.clickable { transition: none; }
+    }
   `],
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {

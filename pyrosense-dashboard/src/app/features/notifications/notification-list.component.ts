@@ -5,7 +5,6 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -14,6 +13,8 @@ import { Subject, takeUntil } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ApiService, NotificationResponse, NotificationStatistics } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader.component';
+import { EmptyStateComponent } from '../../shared/components/empty-state.component';
 
 interface NotificationPreferences {
   userId: string;
@@ -27,38 +28,47 @@ interface NotificationPreferences {
   standalone: true,
   imports: [
     CommonModule, FormsModule, MatTableModule, MatTabsModule, MatIconModule,
-    MatCardModule, MatProgressSpinnerModule, MatChipsModule,
+    MatCardModule, MatChipsModule,
     MatSlideToggleModule, MatSnackBarModule, MatButtonModule,
+    SkeletonLoaderComponent, EmptyStateComponent,
   ],
   template: `
-    <div class="notifications-container">
-      <h1>Notifications</h1>
+    <div class="notifications-container" role="main" aria-labelledby="notifications-title">
+      <h1 id="notifications-title">Notifications</h1>
 
       <mat-tab-group>
         <mat-tab label="Historique">
           <div class="tab-content">
 
+      @if (loading()) {
+        <div class="stats-row" aria-label="Chargement">
+          @for (i of [1,2,3,4]; track i) {
+            <mat-card class="stat-card"><mat-card-content><app-skeleton type="stat" /></mat-card-content></mat-card>
+          }
+        </div>
+        <app-skeleton type="table" [count]="5" [columns]="5" />
+      } @else {
       @if (statistics()) {
-        <div class="stats-row">
-          <mat-card class="stat-card sent">
+        <div class="stats-row" role="region" aria-label="Statistiques des notifications">
+          <mat-card class="stat-card sent" [attr.aria-label]="'Envoyees: ' + statistics()!.sent">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.sent }}</div>
               <div class="stat-label">Envoyees</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card pending">
+          <mat-card class="stat-card pending" [attr.aria-label]="'En attente: ' + statistics()!.pending">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.pending }}</div>
               <div class="stat-label">En attente</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card retrying">
+          <mat-card class="stat-card retrying" [attr.aria-label]="'En reessai: ' + statistics()!.retrying">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.retrying }}</div>
               <div class="stat-label">En reessai</div>
             </mat-card-content>
           </mat-card>
-          <mat-card class="stat-card failed">
+          <mat-card class="stat-card failed" [attr.aria-label]="'Echouees: ' + statistics()!.failed">
             <mat-card-content>
               <div class="stat-value">{{ statistics()!.failed }}</div>
               <div class="stat-label">Echouees</div>
@@ -66,10 +76,6 @@ interface NotificationPreferences {
           </mat-card>
         </div>
       }
-
-      @if (loading()) {
-        <mat-spinner diameter="40"></mat-spinner>
-      } @else {
         <table mat-table [dataSource]="notifications()" class="notifications-table">
           <ng-container matColumnDef="severity">
             <th mat-header-cell *matHeaderCellDef>Severite</th>
@@ -111,12 +117,7 @@ interface NotificationPreferences {
         </table>
 
         @if (notifications().length === 0) {
-          <mat-card class="empty-card">
-            <mat-card-content>
-              <mat-icon>notifications_none</mat-icon>
-              <p>Aucune notification</p>
-            </mat-card-content>
-          </mat-card>
+          <app-empty-state icon="notifications_none" title="Aucune notification" message="Les notifications envoyees apparaitront ici." />
         }
       }
 
@@ -140,7 +141,7 @@ interface NotificationPreferences {
                         <div class="pref-desc">Recevoir les notifications par email</div>
                       </div>
                     </div>
-                    <mat-slide-toggle [(ngModel)]="preferences().consentEmail" (change)="savePreferences()"></mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentEmail" (change)="savePreferences()" aria-label="Activer notifications email"></mat-slide-toggle>
                   </div>
                   <div class="pref-item">
                     <div class="pref-info">
@@ -150,7 +151,7 @@ interface NotificationPreferences {
                         <div class="pref-desc">Recevoir les alertes critiques par SMS</div>
                       </div>
                     </div>
-                    <mat-slide-toggle [(ngModel)]="preferences().consentSms" (change)="savePreferences()"></mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentSms" (change)="savePreferences()" aria-label="Activer notifications SMS"></mat-slide-toggle>
                   </div>
                   <div class="pref-item">
                     <div class="pref-info">
@@ -160,7 +161,7 @@ interface NotificationPreferences {
                         <div class="pref-desc">Notifications push dans le navigateur</div>
                       </div>
                     </div>
-                    <mat-slide-toggle [(ngModel)]="preferences().consentPush" (change)="savePreferences()"></mat-slide-toggle>
+                    <mat-slide-toggle [(ngModel)]="preferences().consentPush" (change)="savePreferences()" aria-label="Activer notifications push"></mat-slide-toggle>
                   </div>
                 </div>
               </mat-card-content>
@@ -201,6 +202,17 @@ interface NotificationPreferences {
     .pref-info mat-icon { color: #5c6bc0; }
     .pref-label { font-weight: 500; }
     .pref-desc { font-size: 12px; color: #666; margin-top: 2px; }
+
+    @media (max-width: 960px) {
+      .stats-row { gap: 8px; }
+      .stat-card { min-width: 120px; }
+      .notifications-table { font-size: 13px; }
+    }
+    @media (max-width: 600px) {
+      .stats-row { flex-direction: column; }
+      .stat-card { min-width: unset; }
+      .pref-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
   `],
 })
 export class NotificationListComponent implements OnInit, OnDestroy {
